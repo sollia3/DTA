@@ -13,7 +13,7 @@ red=255;    cyan=239; cyan0=176;
 SHADERANGE=63;
 //STATE ENUMERATION
 out=0;  show=1; action=2; exploding=3; boom=4;  reset=5; dead=6; respawn=7; ready=8;
-s_destruct=9: onfoot=10; ascent=11; hopping=12; got_fuel=13;   got_shell=14;  got_nowt=15;
+onfire=9: onfoot=10; ascent=11; hopping=12; got_fuel=13;   got_shell=14;  got_nowt=15;
 shot=16; shooting=17; running=18;   kamikazi=19;
 
 
@@ -37,7 +37,7 @@ n0#=30; n1#=31; n2#=32; n3#=33; n4#=34; n5#=35; n6#=36; n7#=37; n8#=38; n9#=39;
 global
 
 statetag[20]= "out",  "show", "action", "exploding", "boom", "reset", "dead",
-              "respawn", "ready", "s_destruct", "on foot", "ascent", "hopping",
+              "respawn", "ready", "onfire", "on foot", "ascent", "hopping",
               "got_fuel", "got_shell", "got_nowt","shot","shooting", "running",
               "kamikazi";
 
@@ -2475,7 +2475,7 @@ end
 
 //___________________________________________________________________________________
 
-process flame(x,y,z,col);
+process flame(x,y,z,col,size,h);
 private
 px[1];
 py[1];
@@ -2491,31 +2491,63 @@ graph=107;
 col0=col;
 x0=x;
 y0=y;
-size=80;
+Z0=Z;
     while (col>123)
     if(col>140)
-        z+=10;
+        z+=h;
+        z0-=1;
+        if(z0<0)z0=0; END
+
     else
-        z-=10;
-        z0+=10;
+        z-=2;
+        z0+=2;
     end
         col0=col+rand(0,5);
         if(col0<=128) col0=0; END
+        x=father.x  ; y=father.y;
         get_real_point(1, &px[0],&pz[0]);
         get_real_point(2, &px[1],&pz[1]);
-            x0=x+rand(-80,80);
-            y0=y+rand(-80,80);
+            x0=x+rand(-size,size);
+            y0=y+rand(-size,size);
             //draw_3dline(px[0],z+rand(0,10),pz[0],px[1],0,pz[1],1,1,col0,128,0);
-            draw_3dline(px[0],z0,pz[0],x0,z*2,y0,1,1,col0,128,0);
-            draw_3dline(x0,z*2,y0,px[1],z0,pz[1],1,1,col0,128,0);
+            draw_3dline(px[0],z0,pz[0],x0,z,y0,1,1,col0,128,0);
+            draw_3dline(x0,z,y0,px[1],z0,pz[1],1,1,col0,128,0);
 
             col-=2;
             angle=rand(-180000,180000);
         frame;
     end
-
+    father.state-=1;
 end
 //___________________________________________________________________________________
+
+process manfire(p_id)
+private
+col;
+begin
+col=170;
+ctype=c_scroll;
+graph=107;
+p_id.state=onfire;
+from c=0 to 5000 step 100;
+x=p_id.x;
+y=p_id.y;
+flame(x,y,40,col,30,3);
+STATE+=1;
+frame;
+end
+
+while(renderme>600)
+x=p_id.x;
+y=p_id.y;
+if(state<>0) break; end
+frame;
+end
+
+end
+
+//___________________________________________________________________________________
+
 
 process oilfire(x,y,patch_id);
 private
@@ -2525,10 +2557,10 @@ begin
 col=164;
 ctype=c_scroll;
 graph=107;
-from c=0 to 1000 step 50;
+from c=0 to 1000 step 80;
 //col-=3;
 if(c<=150)
-flame(x,y,0,col);
+flame(x,y,0,col,60,20);
 end
 frame;
 end
@@ -2706,7 +2738,7 @@ begin
             if(travel>0)
             hit_box=(collision(type tankobj));
             if(hit_box)
-                if(z<100)
+                if(z<100 and(hit_box.state==onfoot or hit_box.state==action))
                      laserdot(x,z,y,150-travel/5);
                     signal(id,s_kill);
                     frame;
@@ -2818,13 +2850,14 @@ begin
                     END
                     if(hit_box.state==onfoot or hit_box.state==hopping)
                         hit_box.state=shot;
+
                     else
                         if(hit_box.state==kamikazi  or hit_box.state==got_shell)
                         hit_box.state=boom;
                         else
                             if(hit_box.state==got_fuel)
-                                oilfire(x,y,0);
-                                hit_box.state=boom;
+                                manfire(hit_box);
+                                //hit_box.state=boom;
                             end
                         end
                     end
@@ -2836,7 +2869,7 @@ begin
             hit_box=(collision(type tankobj));
 
             if(hit_box)
-                if(z<100)
+                if(z<100 and (hit_box.state==onfoot or hit_box.state==action))
                     for(s=0; s<4; s+=1)
                      spark(x,z,y);
                      //hit_box.state=shot;
@@ -3348,7 +3381,7 @@ BEGIN
                                 vwrite(cam[n].cx-40,cam[n].cy-40,120,tcol,"eject");
 
 
-                            if(not key(up[n])) eject=2;
+                            if(timeout==100 and key(up[n])) eject=2;
                             EnD
                         else
                             hopout(n);
@@ -3670,20 +3703,7 @@ BEGIN
             obj[objnum].anglex=3600000;
         END
 
-        if(player_id[index].state==shot)
-            obj[objnum].fogme=0;
 
-            if(flicker<64)
-                flicker+=1;
-                obj[objnum].col0=color[flicker mod 3]-flicker;
-                if(obj[objnum].col0<=green0)
-                    obj[objnum].col0=green0;
-                end
-            else
-            player_id[index].state=dead;
-            end
-
-        END
 
 
         if (player_id[index]==id)
@@ -3788,10 +3808,11 @@ BEGIN
                          obj[objnum].posy=height;
                          position_obj(objnum,obj[objnum].posx,obj[objnum].posy,obj[objnum].posz);
                          state=onfoot;
+
                         END
                     END
 
-                    case onfoot,got_fuel, got_shell:
+                    case onfoot,got_fuel, onfire, got_shell:
                             vel=(key(up[index])-key(dn[index]))*15;
 
                         if(key(ctrl[index]))
@@ -3876,6 +3897,7 @@ BEGIN
                             obj[s_minifuel[index].part[0]].posy=obj[objnum].posy-10;
                             obj[s_minifuel[index].part[0]].posz=obj[objnum].posz-sinA*20/1000;
                             obj[s_minifuel[index].part[0]].angley=angle;
+                            flicker=0;
                         END
 
                         if(state==got_shell)
@@ -3892,13 +3914,39 @@ BEGIN
 
 
                         END
-                        if(state==onfoot)
+                        if(state==onfoot or state==onfire)
                             s_minishell[index].part_id[0].state=out;
                             s_minifuel[index].part_id[0].state=out;
 
+                            if(state==onfire)
+
+                                obj[objnum].fogme=0;
+                              switch(flicker)
+                                case 0: obj[objnum].col0=240; end
+                                case 1..10: obj[objnum].col0+=1; END
+                                case 11: obj[objnum].col0=143;  end
+                                case 12..30: obj[objnum].col0+=1; END
+                                case 31..70:
+                                    obj[objnum].col0-=1;
+                                    if(obj[objnum].col0<128)
+                                    obj[objnum].col0=128;
+                                    flicker=100;
+                                    end
+                                    end
+
+                                default:
+                                state=dead;
+                                end
+                              end
+                            flicker+=1;
+
+                            end
                         END
 
+
                     END
+
+
 
                      case shot:
 
@@ -3917,6 +3965,23 @@ BEGIN
 
                         //move_objxz(objnum,vel);
                         position_obj(objnum,obj[objnum].posx+rand(-1,1),obj[objnum].posy+rand(-1,1),obj[objnum].posz+rand(-1,1));
+
+                        obj[objnum].fogme=0;
+
+                        if(flicker<64)
+                            flicker+=1;
+                            obj[objnum].col0=color[flicker mod 3]-flicker;
+                            if(obj[objnum].col0<=green0)
+                                obj[objnum].col0=green0;
+                            end
+                        else
+                            player_id[index].state=dead;
+                            obj[objnum].fogme=1;
+                            obj[objnum].col0=green;
+
+
+                        end
+
 
 
                      END
@@ -3963,8 +4028,8 @@ BEGIN
                             hide_player(index,1,1);
 
                             flicker=0;
-                            obj[player[index]].col0=green;
-                            obj[player[index]].fogme=1;
+                            obj[objnum].col0=green;
+
                      END
 
 
@@ -3974,9 +4039,13 @@ BEGIN
                 END
 
             ELSE
+
+                obj[objnum].col0=obj[player[index]].col0;
+                obj[objnum].fogme=obj[player[index]].fogme;
+                priority=player_id[index].priority+1;
                 if(state==running)
                     theta+=15000;
-                    swing=sin(theta)*30;
+                    swing=sin(theta)*50;
                 END
                 vel=key(up[index]) or key(dn[index]);
 
@@ -4073,13 +4142,10 @@ BEGIN
                                 rotate_objzyx(objnum,0,0,0);
 
                             end
-
                             default:
                             end
                         end
-
                     END
-
 
 
 
@@ -4266,7 +4332,7 @@ BEGIN
                     END
 
 
-                    case onfoot,got_fuel, got_shell:
+                    case onfoot,got_fuel, onfire,got_shell:
 
 
 
@@ -4344,44 +4410,46 @@ BEGIN
                             end
 
                             case 4:  //right arm
-                                angle=obj[player[index]].angley;
-                                py=obj[player[index]].posy+2;
-                                px=obj[player[index]].posx+GET_DISTX(ANGLE,14);
-                                pZ=obj[player[index]].posz+GET_DISTy(ANGLE,14);
+                                if(player_id[index].state<>onfire)
+
+                                    angle=obj[player[index]].angley;
+                                    py=obj[player[index]].posy+2;
+                                    px=obj[player[index]].posx+GET_DISTX(ANGLE,14);
+                                    pZ=obj[player[index]].posz+GET_DISTy(ANGLE,14);
 
 
-                                position_obj(objnum,px,py,pz);
-                                obj[objnum].angley=obj[player[index]].angley;
+                                    position_obj(objnum,px,py,pz);
+                                    obj[objnum].angley=obj[player[index]].angley;
 
-                                if(state==shooting )
-                                   obj[objnum].anglex=90000;
-                                   move_objy(objnum,5);
-                                   move_objxz(objnum,10);
-
-
-                                 rotx+=key(up[index])*300;
-                                 rotx-=key(dn[index])*300;
-
-                                 obj[objnum].angley=obj[body[index].head].angley;
-                                 obj[objnum].anglex+=obj[body[index].head].anglex+rotx;
-                                 angle=obj[objnum].angley;
-
-                                    laser(index,objnum);
-                                    if(key(fire[index]))
-                                      if(fired==0)
-                                        bullet(index,objnum);
-                                        fired=1;
-                                        end
-                                    else
-                                        fired=0;
-                                    END
+                                    if(state==shooting )
+                                        obj[objnum].anglex=90000;
+                                        move_objy(objnum,5);
+                                        move_objxz(objnum,10);
 
 
+                                        rotx+=key(up[index])*300;
+                                        rotx-=key(dn[index])*300;
 
-                                rotate_objxyz(objnum,0,0,0);
+                                        obj[objnum].angley=obj[body[index].head].angley;
+                                        obj[objnum].anglex+=obj[body[index].head].anglex+rotx;
+                                        angle=obj[objnum].angley;
+
+                                        laser(index,objnum);
+                                        if(key(fire[index]))
+                                            if(fired==0)
+                                                bullet(index,objnum);
+                                                fired=1;
+                                            end
+                                        else
+                                            fired=0;
+                                        END
 
 
-                                ELSE
+
+                                        rotate_objxyz(objnum,0,0,0);
+
+
+                                    ELSE
                                         rotx=0;
                                         roty=0;
                                         if(state==running and vel<>0)
@@ -4405,11 +4473,31 @@ BEGIN
                                                 END
                                             END
                                         END
-                                END
+                                    END
 
+                                else
+
+                                    if(flicker<2)
+                                        dx=22 ; dy=20; A1=135000;
+                                    else
+                                        dx=22 ; dy=16; A1=100000;
+                                    end
+
+                                    angle=obj[player[index]].angley;
+                                    py=obj[player[index]].posy+dy;
+                                    px=obj[player[index]].posx+GET_DISTX(ANGLE+rand(-30000,30000),dx);
+                                    pZ=obj[player[index]].posz+GET_DISTy(ANGLE+rand(-30000,30000),dx);
+                                    position_obj(objnum,px,py,pz);
+                                    obj[objnum].angley=obj[player[index]].angley;
+                                    obj[objnum].anglez=A1;
+                                    rotate_objzyx(objnum,0,0,0);
+
+
+                                END
 
                             end
                             case 5:   //left arm
+                               if(player_id[index].state<>onfire)
                                 angle=obj[player[index]].angley;
                                 py=obj[player[index]].posy+2;
                                 px=obj[player[index]].posx-GET_DISTX(ANGLE,14);
@@ -4428,6 +4516,23 @@ BEGIN
                                         obj[objnum].anglex=0;
                                         rotate_objxyz(objnum,0,0,0);
                                     END
+                               else
+                                if(flicker<2)
+                                dx=22 ; dy=20; A1=-135000;
+                                else
+                                dx=22 ; dy=16; A1=-100000;
+                                end
+
+                                angle=obj[player[index]].angley;
+                                py=obj[player[index]].posy+dy;
+                                px=obj[player[index]].posx-GET_DISTX(ANGLE+rand(-30000,30000),dx);
+                                pZ=obj[player[index]].posz-GET_DISTy(ANGLE+rand(-30000,30000),dx);
+                                position_obj(objnum,px,py,pz);
+                                obj[objnum].angley=obj[player[index]].angley;
+                                obj[objnum].anglez=A1;
+                                rotate_objzyx(objnum,0,0,0);
+
+                               end
                             end
                             default: end
                         end
