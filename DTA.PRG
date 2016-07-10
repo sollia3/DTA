@@ -141,7 +141,7 @@ fuel[1];
 gems[1];
 tanks[1];
 justKilled[1];
-END  =30000,10,0,0,10,10, 30000,30000,0,0,12,12,0,0;
+END  =30000,10,0,0,10,10, 30000,30000,0,0,5,5,0,0;
 //----------------------------
 
 struct cam[2]
@@ -574,7 +574,7 @@ PROCESS menu(i,j);
             index;
         END
 
-        struct rules[11]
+        struct rules[16]
             string name;
             index;
         END
@@ -602,17 +602,22 @@ PROCESS menu(i,j);
         text[1].name="div tank arena";
         text[2].name="use space key to enter";
         rules[0].name="use arrowkeys to view instructions";
-        rules[1].name="1 upon entering you will each find yourselves in the driving seat of a tank";
-        rules[2].name="2 you will each be allocated 12 such tanks";
-        rules[3].name="3 destroy all your opponents tanks first";
-        rules[4].name="4 tanks are controlled with these keys";
-        rules[5].name="5 each tank has limited fuel and shells which can be replenished by driving over these objects";
-        rules[6].name="6 you may also exit your tank and collect these objects on foot";
-        rules[7].name="7 to exit a tank hold down the up and down keys for 3 seconds";
-        rules[8].name="8 while on foot you will be armed with a sidearm for close combat";
-        rules[9].name="9 to use the sidearm you must be in shooting mode";
-        rules[10].name="10 to switch between running and shooting mode press the shift key";
-        rules[11].name="11 picked up fuel and shells can be used by holding the up and down keys for 3 seconds";
+        rules[1].name="upon entering you will each find yourselves in the driving seat of a tank";
+        rules[2].name="you will each be allocated 5 such tanks";
+        rules[3].name="destroy all your opponents tanks  including their drivers first";
+        rules[4].name="tanks are controlled with these keys";
+        rules[5].name="each tank has limited fuel and shells which can be replenished by driving over these objects";
+        rules[6].name="you may also exit your tank and collect these objects on foot";
+        rules[7].name="to exit a tank press the left and right keys simultaneously";
+        rules[8].name="if a player dies while out of his tank the tank will be lost";
+        rules[9].name="while on foot you will be armed with a sidearm for close combat";
+        rules[10].name="to use the sidearm you must be in shooting mode";
+        rules[11].name="to switch between running and shooting mode press the shift key";
+        rules[12].name="pressing fire while carrying the shell in running mode will convert it into a jetpack" ;
+        rules[13].name="jetpacks are suicidal but can be used to destroy enemy tanks";
+        rules[14].name="pressing fire while carrying the fuel in running mode will empty it out creating an oilpatch";
+        rules[14].name="oil patches are flammable and can be ignited with gunshots or tankshells";
+        rules[15].name="players and tanks also burn";
 
         x=i; y=j;
         ticker=strlen(text[0].name);
@@ -952,7 +957,7 @@ process messagecentre(index)
             switch (state)
                 case ready:
                     if(c==0)
-                        sound(snd_alert,256,256);
+                        sound(snd_alert,32,256);
                     END
                     c+=1;
                     if(c mod 3==0)
@@ -2485,6 +2490,7 @@ col0;
 x0;
 y0;
 z0;
+hit;
 begin
 ctype=c_scroll;
 graph=107;
@@ -2515,6 +2521,14 @@ Z0=Z;
 
             col-=2;
             angle=rand(-180000,180000);
+            from c=0 to 1;
+                if(player_id[c].state<>onfire)
+                    hit=get_dist(player_id[c]);
+                    if(hit<100)
+                        manfire(player_id[c]);
+                    end
+                end
+            end
         frame;
     end
     father.state-=1;
@@ -2529,7 +2543,7 @@ col=170;
 ctype=c_scroll;
 graph=107;
 p_id.state=onfire;
-from c=0 to 5000 step 100;
+from c=0 to 4000 step 100;
 x=p_id.x;
 y=p_id.y;
 flame(x,y,40,col,30,3);
@@ -2540,7 +2554,7 @@ end
 while(renderme>600)
 x=p_id.x;
 y=p_id.y;
-if(state<>0) break; end
+if(state==0) break; end
 frame;
 end
 
@@ -2560,8 +2574,11 @@ graph=107;
 from c=0 to 1000 step 80;
 //col-=3;
 if(c<=150)
-flame(x,y,0,col,60,20);
+flame(x,y,0,col,100,40);
 end
+frame;
+end
+from c=0 to 100;
 frame;
 end
 if(patch_id<>0)
@@ -3228,14 +3245,33 @@ BEGIN
         tilt=0; twist=0;
         //vel=0;
         write_int(0,100,100*n,0,&temp);
+
         if((state==onfoot or state==action) and collision(type oilfire))
-           temp+=1;
-           if(temp>5)
-                set_tank_state(n,boom);
-           END
-        else
-            if(temp>0) temp-=1; END
+           temp+=2;
         end
+        if(temp>0)
+          obj[tank[n]].fogme=0;
+          temp-=1;
+          if(state<>onfire)
+          if(temp<=10)
+            obj[tank[n]].col0=240+temp;
+           else
+                state=onfire;
+                temp=16;
+                flicker=0;
+            END
+          end
+        end
+
+
+
+        if(temp<=0 and (state==action or state==onfoot) and obj[tank[n]].col0>green)
+        obj[tank[n]].fogme=1;
+        obj[tank[n]].col0=green;
+        END
+
+
+
         switch(state)
             case ready:
                state=respawn;
@@ -3313,7 +3349,39 @@ BEGIN
                     flicker=0;
                 end
             END
+            case onfire:
+                flicker+=1;
 
+                if(flicker<=24)
+                  temp+=2;
+                else
+                  temp-=1;
+                end
+                if(temp<=0)
+                temp=0;
+                set_tank_state(n,dead);
+                if(player_id[n].state==action)
+                    player_id[n].state=dead;
+                    END
+
+                end
+                obj[tank[n]].col0=128+temp;
+
+          /*
+            obj[tank[n]].fogme=0;
+
+                if(flicker<64)
+                    flicker+=1;
+                    obj[tank[n]].col0=color[flicker mod 3]-flicker;
+                if(obj[tank[n]].col0<=green0)
+                    obj[tank[n]].col0=green0;
+                end
+                else
+                    set_tank_state(n,dead);
+                    flicker=0;
+                end
+            */
+            end
 
             case dead:
                    if(hull_id[n].state==dead
@@ -3720,7 +3788,6 @@ BEGIN
                         if(vel<100)
                             vel+=10;
                         END
-                        vel=0;
                         if(key(lf[index]) and ang<5000)
                         ang+=100;
                         end
@@ -3936,6 +4003,10 @@ BEGIN
 
                                 default:
                                 state=dead;
+                                hide_player(index,1,0);
+                                hide_player(index,1,1);
+                                obj[objnum].col0=128;
+
                                 end
                               end
                             flicker+=1;
@@ -4042,7 +4113,7 @@ BEGIN
 
                 obj[objnum].col0=obj[player[index]].col0;
                 obj[objnum].fogme=obj[player[index]].fogme;
-                priority=player_id[index].priority+1;
+                priority=player_id[index].priority-1;
                 if(state==running)
                     theta+=15000;
                     swing=sin(theta)*50;
@@ -4596,7 +4667,7 @@ BEGIN
                 switch(player_id[c].state)
                     case action,show:
                         cnt[c]=0;
-                        dis[c]= 200;
+                        dis[c]= 100;
                         spd=0;
                         ht[c]=20;
                         cam[c].angle=-obj[c].angley-turret_id[c].angle;
