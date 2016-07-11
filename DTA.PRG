@@ -398,6 +398,8 @@ BEGIN
 
 
 
+
+
         delete_draw(all_drawing);
         draw(2,80,7,0,0,0,scr_w-1,scr_cy-1);
         draw(2,80,7,0,0,scr_cy+1,scr_w-1,scr_h-1);
@@ -588,7 +590,7 @@ PROCESS menu(i,j);
         rule=0;
         pressing;
         new_rule;
-        rule_count=11;
+        rule_count=14;
     BEGIN
         /*
         loop
@@ -600,40 +602,40 @@ PROCESS menu(i,j);
 
         text[0].name="you have accessed";
         text[1].name="div tank arena";
-        text[2].name="use space key to enter";
+        text[2].name="a tank battle for two players";
+        text[3].name="use space key to enter";
         rules[0].name="use arrowkeys to view instructions";
-        rules[1].name="upon entering you will each find yourselves in the driving seat of a tank";
-        rules[2].name="you will each be allocated 5 such tanks";
-        rules[3].name="destroy all your opponents tanks  including their drivers first";
-        rules[4].name="tanks are controlled with these keys";
+        rules[1].name="upon entering you will find yourself in control of a battle tank";
+        rules[2].name="you are allocated a fleet of five of these tanks";
+        rules[3].name="your objective is to destroy your opponents fleet";
+        rules[4].name="tank controls";
         rules[5].name="each tank has limited fuel and shells which can be replenished by driving over these objects";
         rules[6].name="you may also exit your tank and collect these objects on foot";
         rules[7].name="to exit a tank press the left and right keys simultaneously";
-        rules[8].name="if a player dies while out of his tank the tank will be lost";
-        rules[9].name="while on foot you will be armed with a sidearm for close combat";
-        rules[10].name="to use the sidearm you must be in shooting mode";
-        rules[11].name="to switch between running and shooting mode press the shift key";
-        rules[12].name="pressing fire while carrying the shell in running mode will convert it into a jetpack" ;
-        rules[13].name="jetpacks are suicidal but can be used to destroy enemy tanks";
-        rules[14].name="pressing fire while carrying the fuel in running mode will empty it out creating an oilpatch";
-        rules[14].name="oil patches are flammable and can be ignited with gunshots or tankshells";
-        rules[15].name="players and tanks also burn";
+        rules[8].name="player controls";
+        rules[9].name="pressing fire while carrying the shell in running mode will convert it into a jetpack" ;
+        rules[10].name="jetpacks are suicidal but can be used to destroy enemy tanks";
+        rules[11].name="pressing fire while carrying the fuel in running mode will empty it out creating an oilpatch";
+        rules[12].name="oil patches are flammable and can be ignited with gunshots or tankshells";
+        rules[13].name="players and tanks also burn";
+        rules[14].name="if a player dies while out of his tank the tank will be lost";
 
-        x=i; y=j;
+
+       // x=i; y=j;
         ticker=strlen(text[0].name);
         loop
         write_int(0,10,10,0,&line);
-            j=y;
+         //   j=y;
             switch (line)
                 case 0:
                     if(ticker>0) ticker-=1;
-                        snd= sound(snd_click,256,256);
+                        snd= sound(snd_click,32,256);
                     ELSE
                         line=-1;
-                        ticker=-30;
+                        ticker=-10;
                     END
                     partial=text[0].name-ticker;
-                    vwrite(i-160,j-40,40,green+32,partial);
+                    vwrite(20,20,50,green,partial);
                 END
                 case -1:
                     if(ticker<0)
@@ -645,13 +647,13 @@ PROCESS menu(i,j);
                 END
                 case 1:
                     partial=text[1].name-ticker;
-                    vwrite(i-100,j,200,green+32,partial);
+                    vwrite(20,40,50,green,partial);
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,256,256);
+                        snd= sound(snd_click,32,256);
                     ELSE
                         line=-2;
-                        ticker=-30;
+                        ticker=-10;
                     END
                 END
                 case -2:
@@ -664,13 +666,13 @@ PROCESS menu(i,j);
                 END
                 case 2:
                     partial=text[2].name-ticker;
-                    vwrite(i,j+100,50,green+32,partial);
+                    vwrite(20,60,50,green,partial);
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,256,256);
+                        snd= sound(snd_click,32,256);
                     ELSE
                         line=-3;
-                        ticker=-30;
+                        ticker=-10;
                     END
                 END
 
@@ -678,27 +680,49 @@ PROCESS menu(i,j);
                     if(ticker<0)
                         ticker+=1;
                     ELSE
-                        ticker=strlen(rules[0].name);
+                        ticker=strlen(text[3].name);
                         line=3;
                     END
                 END
 
                 case 3:
-                    partial=rules[0].name-ticker;
-                    vwrite(i-300,j+400,40,green+32,partial);
+                    partial=text[3].name-ticker;
+                    vwrite(20,80,50,green,partial);
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,256,256);
+                        snd= sound(snd_click,32,256);
                     ELSE
+                        line=-4;
+                        ticker=-10;
+                    END
+                END
+
+
+                case -4:
+                    if(ticker<0)
+                        ticker+=1;
+                    ELSE
+                        ticker=strlen(rules[0].name);
                         line=4;
+                    END
+                END
+
+                case 4:
+                    partial=rules[0].name-ticker;
+                    vwrite(20,100,40,green,partial);
+                    if(ticker>0)
+                        ticker-=1;
+                        snd= sound(snd_click,32,256);
+                    ELSE
+                        line=5;
                     END
                 END
 
 
 
-                case 4:
+                case 5:
                     if(key(_space))
-                        line=5;
+                        line=6;
                         col=green+64;
                     END
                     if(key(_left))
@@ -725,10 +749,6 @@ PROCESS menu(i,j);
                     END
 
                     pressing=key(_right)-key(_left);
-                    write_int(0,100,100,0,&rule);
-                    write_int(0,100,110,0,&new_rule);
-                    write_int(0,100,120,0,&ticker);
-                    //write(0,100,130,0,rules[0].name);
                     if(new_rule==1)
                         ticker=strlen(rules[rule].name);
                         new_rule=0;
@@ -736,12 +756,13 @@ PROCESS menu(i,j);
                     partial=rules[rule].name-ticker;
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,64,128);
+                        snd= sound(snd_click,16,256);
                     END
-                    vwrite(i-300,j+400,40,green+32,partial);
-
+                    vwrite(20,100,40,green,partial);
+                    graph=rule+30;
+                    x=400; y=0;
                 END
-                case 5:
+                case 6:
                     if(col>64)
                         col-=12;
                     ELSE
@@ -753,16 +774,21 @@ PROCESS menu(i,j);
                 default:
                 END
             END
-            if(line<5)  col=green; END
+            if(line<6)  col=green-32; END
             if(abs(line)>=1)
-                vwrite(i-160,j-40,40,col,text[0].name);
+                vwrite(20,20,40,col,text[0].name);
             END
             if(abs(line)>=2)
-                vwrite(i-100,j,200,col,text[1].name);
+                vwrite(20,40,40,col,text[1].name);
             END
             if(abs(line)>=3)
-                vwrite(i,j+100,50,col,text[2].name);
+                vwrite(20,60,40,col,text[2].name);
             END
+
+            if(abs(line)>=4)
+                vwrite(20,80,40,col,text[3].name);
+            END
+
 
             frame;
         END
@@ -2347,6 +2373,11 @@ BEGIN
                     END
                 else
                     explosionF(shell[n],8);
+                    hit_box=collision(type oilpatch);
+                    if(hit_box)
+                        igniteoil(x,y,hit_box);
+                    END
+
                     if(get_dist(player_id[1-n1])<200)
                         if(player_id[1-n1].state==onfoot
                         or player_id[1-n1].state==got_fuel
@@ -2510,9 +2541,11 @@ Z0=Z;
     end
         col0=col+rand(0,5);
         if(col0<=128) col0=0; END
-        x=father.x  ; y=father.y;
-        get_real_point(1, &px[0],&pz[0]);
-        get_real_point(2, &px[1],&pz[1]);
+            x=father.x; y=father.y;
+            angle=father.angle;
+
+            get_real_point(1, &px[0],&pz[0]);
+            get_real_point(2, &px[1],&pz[1]);
             x0=x+rand(-size,size);
             y0=y+rand(-size,size);
             //draw_3dline(px[0],z+rand(0,10),pz[0],px[1],0,pz[1],1,1,col0,128,0);
@@ -2520,12 +2553,11 @@ Z0=Z;
             draw_3dline(x0,z,y0,px[1],z0,pz[1],1,1,col0,128,0);
 
             col-=2;
-            angle=rand(-180000,180000);
             from c=0 to 1;
-                if(player_id[c].state<>onfire)
+                if(player_id[c].state<>onfire and player_id[c].state<>dead)
                     hit=get_dist(player_id[c]);
                     if(hit<100)
-                        manfire(player_id[c]);
+                        manfire(c);
                     end
                 end
             end
@@ -2534,27 +2566,104 @@ Z0=Z;
     father.state-=1;
 end
 //___________________________________________________________________________________
-
-process manfire(p_id)
+process flame2(x1,y1,z1,x2,y2,z2,x3,y3,z3,col0,v)
 private
 col;
+begin
+
+
+while(col0>128)
+y1+=v;
+y2+=v;
+y3+=2*v;
+col0-=4;
+col=col0+rand(0,4);
+if(col<128) col=128; END
+draw_3dline(x1,y1,z1,x3,y3,z3,1,1,col,128,0);
+draw_3dline(x2,y2,z2,x3,y3,z3,1,1,col,128,0);
+frame;
+end
+end
+
+
+//___________________________________________________________________________________
+
+process tankfire(index)
+private
+col0=170;
+v1;
+v2;
+t;
+i;
+rx; rz;
+col;
+x1;
+y1;
+z1;
+x2;
+y2;
+z2;
+x3;
+y3;
+z3;
+
+begin
+
+while(t<30)
+ col0-=1;
+from v1=1 to 18;
+if(t mod 4==0)
+rx=rand(-20,20);
+rz=rand(-20,20);
+
+col=col0+rand(0,3);
+x1=obj[tank[index]].vertex[v1].x+rx;
+y1=obj[tank[index]].vertex[v1].y+rand(0,10);
+z1=obj[tank[index]].vertex[v1].z+rz;
+x2=x1-2*rx;
+y2=obj[tank[index]].vertex[v2].y+rand(0,10);
+z2=z1-2*rz;
+x3=x1+rand(-10,10);
+z3=z1+rand(-10,10);
+y3=y1+rand(40,80);
+flame2(x1,y1,z1,x2,y2,z2,x3,y3,z3,170+rand(-5,5),rand(6,10));
+end
+end
+frame;
+t+=1;
+col-=1;
+end
+
+end
+
+
+//___________________________________________________________________________________
+
+process manfire(index)
+private
+col;
+
 begin
 col=170;
 ctype=c_scroll;
 graph=107;
-p_id.state=onfire;
-from c=0 to 4000 step 100;
-x=p_id.x;
-y=p_id.y;
-flame(x,y,40,col,30,3);
-STATE+=1;
+player_id[index].state=onfire;
+from c=0 to 60;
+x=obj[player[index]].posx;
+y=obj[player[index]].posz;
+angle=obj[player[index]].angley+rand(-30000,30000);
+if(c mod 2==0)
+flame(x,y,rand(30,50),col,30,3);
+state+=1;
+end
 frame;
 end
 
-while(renderme>600)
-x=p_id.x;
-y=p_id.y;
-if(state==0) break; end
+while(state>0 and c<1000)
+angle=obj[player[index]].angley+rand(-30000,30000);
+x=obj[player[index]].posx;
+y=obj[player[index]].posz;
+c+=1;
 frame;
 end
 
@@ -2578,7 +2687,7 @@ flame(x,y,0,col,100,40);
 end
 frame;
 end
-from c=0 to 100;
+from c=0 to 60;
 frame;
 end
 if(patch_id<>0)
@@ -2873,7 +2982,7 @@ begin
                         hit_box.state=boom;
                         else
                             if(hit_box.state==got_fuel)
-                                manfire(hit_box);
+                                manfire(1-n);
                                 //hit_box.state=boom;
                             end
                         end
@@ -3211,6 +3320,7 @@ PRIVATE
     i; n;  velx; velz; tilt; twist; vel;   vely;  rolling_sound=16;
     tilting_sound=16;  twisting_Sound=16;  twistspeed;  radi;  timeout; time0; ang;
     angT; eject;  tcol;   temp;     flicker;
+
     struct old
         x,z,ang;
     end
@@ -3249,13 +3359,19 @@ BEGIN
         if((state==onfoot or state==action) and collision(type oilfire))
            temp+=2;
         end
+
         if(temp>0)
+          flicker+=1;
           obj[tank[n]].fogme=0;
+          if(flicker mod 4==0)
           temp-=1;
-          if(state<>onfire)
-          if(temp<=10)
-            obj[tank[n]].col0=240+temp;
-           else
+          end
+          if(state==action or state==onfoot)
+            if(temp<=10)
+                obj[tank[n]].col0=240+temp;
+            else
+
+                tankfire(n);
                 state=onfire;
                 temp=16;
                 flicker=0;
@@ -3269,6 +3385,13 @@ BEGIN
         obj[tank[n]].fogme=1;
         obj[tank[n]].col0=green;
         END
+
+
+        if(key(_space) and n==0)
+        if(tank_id[0].state==action)
+        TEMP=12;
+        END
+        end
 
 
 
@@ -3330,7 +3453,15 @@ BEGIN
                     move_objy(n,vely);
                     vely-=2;
                     rotate_objxyz(n,5000,0,0);
-                else state=dead;
+                    if(temp>0)
+                        obj[tank[n]].col0=240+temp;
+                    end
+                else
+                state=dead;
+                obj[tank[n]].fogme=1;
+                obj[tank[n]].col0=green;
+
+                temp=0;
                 END
 
             END
@@ -3350,37 +3481,17 @@ BEGIN
                 end
             END
             case onfire:
-                flicker+=1;
-
-                if(flicker<=24)
                   temp+=2;
-                else
-                  temp-=1;
-                end
-                if(temp<=0)
-                temp=0;
-                set_tank_state(n,dead);
+                obj[tank[n]].col0=128+temp;
+                if(temp>40)
+                set_tank_state(n,boom);
+                temp=10;
                 if(player_id[n].state==action)
                     player_id[n].state=dead;
                     END
 
                 end
-                obj[tank[n]].col0=128+temp;
 
-          /*
-            obj[tank[n]].fogme=0;
-
-                if(flicker<64)
-                    flicker+=1;
-                    obj[tank[n]].col0=color[flicker mod 3]-flicker;
-                if(obj[tank[n]].col0<=green0)
-                    obj[tank[n]].col0=green0;
-                end
-                else
-                    set_tank_state(n,dead);
-                    flicker=0;
-                end
-            */
             end
 
             case dead:
@@ -3418,7 +3529,8 @@ BEGIN
 //action commands......................................................................
             case action:
 
-                    if(key(up[n]) and key(dn[n]) and eject==0)
+
+                    if(key(lf[n]) and key(rt[n]) and eject==0)
                         time0=timer;
                         eject=1;
                     end
@@ -3448,9 +3560,6 @@ BEGIN
                                 end
                                 vwrite(cam[n].cx-40,cam[n].cy-40,120,tcol,"eject");
 
-
-                            if(timeout==100 and key(up[n])) eject=2;
-                            EnD
                         else
                             hopout(n);
                             eject=0;
@@ -3459,7 +3568,7 @@ BEGIN
                     END
 
                     if(eject==2)
-                        if(not (key(up[n]) and key(dn[n])))
+                        if(not (key(lf[n]) and key(rt[n])))
                             eject=0;
                         end
                     end
@@ -3705,6 +3814,9 @@ BEGIN
                     position_obj(objNum,obj[objnum].posx,obj[objnum].posy,obj[objnum].posz);
                     rotate_objxyz(objnum,rotx,roty,0);
                     vely-=1;
+                    obj[objnum].col0=obj[parent].col0;
+                    obj[objnum].fogme=obj[parent].fogme;
+
                     frame;
                 END
                 state=dead;
@@ -4097,7 +4209,7 @@ BEGIN
                      case dead:
                             hide_player(index,1,0);
                             hide_player(index,1,1);
-
+                            obj[objnum].fogme=1;
                             flicker=0;
                             obj[objnum].col0=green;
 
