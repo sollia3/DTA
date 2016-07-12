@@ -365,6 +365,8 @@ BEGIN
     camera_control();
     physworld();
     make_mounts();
+    moon();
+    vulcano();
     hopin(0); hopin(1);
 
     im_id[0]=messagecentre(tank[0]);
@@ -428,6 +430,160 @@ BEGIN
 END
 //============================================================================================
 //============================================================================================
+
+
+
+
+process vulcano()
+
+private
+
+begin
+       x=0;
+       y=10000;
+       z=-100000;
+
+    loop
+        if(rand(0,12)==0)
+            boulder();
+        end
+        frame;
+    End
+
+end
+
+
+
+//------------------------------------------------------------------------------
+process boulder()
+private
+x0; y0; z0;
+travel;
+x1;y1;z1;
+vel;velv;velx;velz;  velh;
+col; col0; col1;
+begin
+    x0=father.x+rand(-1000,1000); x1=x0;
+    y0=father.y; y1=y0;
+    z0=father.z; z1=z0;
+    angle=rand(20000,90000);
+    vel=rand(400,500);
+    velv=-get_disty(angle,vel);
+    velh=get_distx(angle,vel);
+    angle=rand(0,360000);
+    col1=160+rand(0,8);
+    col0=130;
+    col=col1;
+    while(col>col0)
+        if(col<col0)
+            col=col0;
+        END
+        travel+=1;
+        IF(Travel mod 4 ==0)
+            col-=1;
+        end
+            x1+=get_distx(angle,velh);
+            y1+=velv;
+            z1+=get_disty(angle,velh);
+            if(y1>=0)
+                tracer(x0,y0,z0,x1,y1,z1,col,col0,8);
+            END
+            if(velh>0)
+                velh=9*velh/10;
+            END
+                velv-=10;
+                velv=99*velv/100;
+
+
+            x0=x1; y0=y1; z0=z1;
+
+
+
+        frame;
+        if(col<=col0)
+            break;
+        END
+    END
+
+end
+
+
+
+//------------------------------------------------------------------------------
+
+
+process moon()
+
+private
+rad=3000:
+ang=0;
+step_Ang=30000;
+angz=105000;
+angzt;
+x0; y0: z0: x1: y1: z1:
+col;
+struct l[12]
+    struct v[1]
+     x,y,z;
+    end
+end
+begin
+    c=0;
+    for(ang=0;  ang<360000; ang+=step_ang)
+        c+=1;
+        l[c].v[0].z=get_disty(ang,rad);
+        l[c].v[0].y=get_distx(ang,rad);
+
+        l[c].v[1].z=get_disty(ang+step_ang,rad);
+        l[c].v[1].y=get_distx(ang+step_ang,rad);
+
+    end
+
+    for(c=1;  c<=12; c+=1)
+        l[c].v[0].x=100000;
+        l[c].v[1].x=100000;
+
+    end
+
+
+
+
+   loop
+
+   angz+=10;
+   angz %=360000;
+    for(c=1; c<=12; c+=1)
+        x0=l[c].v[0].x;
+        y0=l[c].v[0].y+12000;
+        z0=l[c].v[0].z;
+        x1=l[c].v[1].x;
+        y1=l[c].v[1].y+12000;
+        z1=l[c].v[1].z;
+        if(angz<180000 and c<=6  or (angz>=180000 and c>6))
+        col=white0+24;
+        else
+        col=white;
+        end
+        draw_3dline(x0,y0,z0,x1,y1,z1,1,1,col,white0,0);
+
+        if((angz < 180000 and c<=6) or (angz>=180000 and c>6))
+        z0=(z0*cos(angz))/1000;
+        z1=(z1*cos(angz))/1000;
+        col=white;
+        draw_3dline(x0,y0,z0,x1,y1,z1,1,1,col,white0,0);
+
+
+        end
+
+    end
+
+
+
+   frame;
+end
+
+end
+
 
 function hopout(index);
     begin
@@ -3427,13 +3583,13 @@ BEGIN
         obj[tank[n]].col0=green;
         END
 
-
+       /*
         if(key(_space) and n==0)
         if(tank_id[0].state==action)
         TEMP=12;
         END
         end
-
+       */
 
 
         switch(state)
@@ -3889,6 +4045,7 @@ BEGIN
     y=obj[objnum].posz;
     z=height;
     angle=obj[objnum].angley;
+
     LOOP
         FRAME;
     END
@@ -3951,7 +4108,8 @@ BEGIN
 
 
                     case kamikazi:
-                        if(vel<100)
+                        if(vel<120)
+                            if(vel==0) vely=24;  end
                             vel+=10;
                         END
                         if(key(lf[index]) and ang<5000)
@@ -3971,33 +4129,44 @@ BEGIN
                             velx=get_disty(angle,vel);
                             velz=-get_distx(angle,vel);
 
-
+                            if(not key(up[index]) or vely>=0) vely-=1; end
+                            if(key(dn[index])) vely-=1; end
 
                         obj[objnum].posx+=velx;
                         obj[objnum].posz+=velz;
+                        obj[objnum].posy+=vely;
+
                         position_obj(objnum,obj[objnum].posx,obj[objnum].posy,obj[objnum].posz);
 
 
                         x=obj[objnum].posx;
                         y=obj[objnum].posz;
 
-                        if(collision(type box))
-                            move_objxz(objnum,-vel);
-                            x=obj[objnum].posx;
-                            y=obj[objnum].posz;
-                            state=boom;
-
+                        c_id=collision(type box);
+                        if(c_id)
+                            if(obj[objnum].posy<c_id.height)
+                                move_objxz(objnum,-vel);
+                                x=obj[objnum].posx;
+                                y=obj[objnum].posz;
+                                state=boom;
+                            end
                         END
 
-                        c_id=collision(type tankobj);
-                        if(c_id)
-                            if(c_id.state==action or c_id.state==onfoot)
-                            move_objxz(objnum,-vel);
-                            x=obj[objnum].posx;
-                            y=obj[objnum].posz;
-                            state=boom;
-                            c_id.state=boom;
-                           end
+                        if(obj[objnum].posy<200)
+                            if(obj[objnum].posy<=0)
+                               obj[objnum].posy=0;
+                               state=boom;
+                            end
+                            c_id=collision(type tankobj);
+                            if(c_id)
+                                if(c_id.state==action or c_id.state==onfoot)
+                                    move_objxz(objnum,-vel);
+                                    x=obj[objnum].posx;
+                                    y=obj[objnum].posz;
+                                    state=boom;
+                                    c_id.state=boom;
+                                end
+                            end
                         END
 
                         x0=obj[s_minishell[index].part[0]].posx;
@@ -5195,7 +5364,7 @@ BEGIN
                             if(col>col1)
                                 col=col1;
                             END
-                            draw(1,col,8,k+1,
+                            draw(1,col,10,k+1,
                                 obj[n].vertex[obj[n].edge[c].v0].sx[k],
                                 obj[n].vertex[obj[n].edge[c].v0].sy[k],
                                 obj[n].vertex[obj[n].edge[c].v1].sx[k],
