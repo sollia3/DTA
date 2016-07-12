@@ -104,6 +104,17 @@ fuelpwr_id[1];
 
 //STRUCTURES----------------------------------------STRUCTURES
 
+
+struct m_dot[200]
+ang,h;   cont;
+end
+
+struct m_line[200]
+x[1];y[1];  z[1];
+end
+
+
+
 struct s_minishell[1]
 part_id[1];
 part[1];
@@ -321,6 +332,16 @@ BEGIN
     fire[1]=_tab;
 
 
+  //  gamestate=-2;
+    if(gamestate==-2)
+      loop
+       vwrite(20,20,50,green,"shift");
+
+      frame;
+      end
+    end
+
+
     if(gamestate==-1)
         intro();
        delete_drawing();
@@ -343,8 +364,7 @@ BEGIN
     init_objects();
     camera_control();
     physworld();
-    moon(0,101);
-    moon(1,101);
+    make_mounts();
     hopin(0); hopin(1);
 
     im_id[0]=messagecentre(tank[0]);
@@ -563,6 +583,41 @@ end
 
 
 //-----------------------------------------------------------------------------------------------
+process blastradius(x,y)
+private
+px[1];
+pz[1];
+h=0;
+col=white;
+col0=white0;
+delta_size=40;
+begin
+ctype=c_scroll;
+graph=106;
+size=delta_size*10;
+    loop
+        get_real_point(1, &px[0],&pz[0]);
+        from c=2 to 13;
+        if(c==13) c=1; END
+        get_real_point(c, &px[1],&pz[1]);
+        if(c==1) c=13; END
+        draw_3dline(px[0],h,pz[0],px[1],h,pz[1],1,1,col,col0,0);
+        px[0]=px[1];
+        pz[0]=pz[1];
+        end
+        if(size>0)
+            h+=10;
+            size-=delta_size;
+            col-=8;
+            if(col<0) break; end
+        else
+            break;
+        end
+
+        frame;
+    end
+
+end
 
 
 //-----------------------------------------------------------------------------------------------
@@ -592,13 +647,6 @@ PROCESS menu(i,j);
         new_rule;
         rule_count=14;
     BEGIN
-        /*
-        loop
-        vwrite(100,100,80,green,"!abcdefghijklmnopqrstuvwxyz");
-        frame;
-
-        END
-        */
 
         text[0].name="you have accessed";
         text[1].name="div tank arena";
@@ -2317,7 +2365,7 @@ BEGIN
                         hit_box=(collision(type box));
                         if(hit_box)
                             if(hit_box.height>z/2)
-                                explosionF(shell[n],8);
+                                explosionF(obj[shell[n]].posx,obj[shell[n]].posy,obj[shell[n]].posz,8,cyan0,cyan);
                                 castlight(obj[shell[n]].posx,obj[shell[n]].posy,obj[shell[n]].posz,64,500);
                                 status=2;
                                 break;
@@ -2332,7 +2380,7 @@ BEGIN
                                 dx=(obj[tank[1-n1]].posx-obj[shell[n]].posx)*(obj[tank[1-n1]].posx-obj[shell[n]].posx);
                                 dz=(obj[tank[1-n1]].posz-obj[shell[n]].posz)*(obj[tank[1-n1]].posz-obj[shell[n]].posz);
                                 if(z<80 or (z<120 and dx+dz<2500))
-                                    explosionF(shell[n],8);
+                                    explosionF(obj[shell[n]].posx,obj[shell[n]].posy,obj[shell[n]].posz,8,cyan0,cyan);
                                     castlight(obj[shell[n]].posx,obj[shell[n]].posy,obj[shell[n]].posz,64,1000);
                                     Position_obj(SHELL[n],obj[BARREL[n1]].vertex[0].x,obj[BARREL[n1]].vertex[0].y+1000,obj[BARREL[n1]].vertex[0].z);
                                     status=2;
@@ -2372,13 +2420,14 @@ BEGIN
                         END
                     END
                 else
-                    explosionF(shell[n],8);
+                    explosionF(obj[shell[n]].posx,obj[shell[n]].posy,obj[shell[n]].posz,8,cyan0,cyan);
+                    blastradius(x,y);
                     hit_box=collision(type oilpatch);
                     if(hit_box)
                         igniteoil(x,y,hit_box);
                     END
 
-                    if(get_dist(player_id[1-n1])<200)
+                    if(get_dist(player_id[1-n1])<400)
                         if(player_id[1-n1].state==onfoot
                         or player_id[1-n1].state==got_fuel
                         or player_id[1-n1].state==got_shell
@@ -2434,11 +2483,12 @@ begin
     obj[n].fogme=1;
 END
 //___________________________________________________________________________________
-process explosionF(n,count)
+process explosionF(x,y,z,count,col0,col1)
 
 Begin
+    if(y<0) y=1; end
     for(c=0; c<count; c+=1)
-        fragment(n,c);
+        fragment(x,y,z,c,col0,col1);
     END
 
 
@@ -2449,29 +2499,18 @@ END
 
 //___________________________________________________________________________________
 
-process fragment(n,c);
+process fragment(x0,y0,z0,c,col0,col1);
 private
-    travel;  x0; y0: z0; x1;y1; z1; velh;  velv; velx; velz;  col=64; vel; col0;
+    travel; x1;y1; z1; velh;  velv; velx; velz;  col; vel;
 begin
     frag_count+=1;
-    x0=obj[n].vertex[0].x;
-    y0=obj[n].vertex[0].y;
-    if(y0<0)
-        y0=1;
-    END
-    z0=obj[n].vertex[0].z;
     x1=x0; y1=y0; z1=z0;
     angle=rand(3000,90000);
     vel=rand(140,180);
     velv=-get_disty(angle,vel);
     velh=get_distx(angle,vel);
     angle=rand(0,360000);
-    col=rand(53,63);
-    col0=0;
-    col=rand(170,173);
-    col0=128;
-    col=cyan;
-    col0=cyan0;
+    col=col1;
     while(col>col0)
         if(col<col0)
             col=col0;
@@ -2983,6 +3022,7 @@ begin
                         else
                             if(hit_box.state==got_fuel)
                                 manfire(1-n);
+
                                 //hit_box.state=boom;
                             end
                         end
@@ -3319,7 +3359,7 @@ PROCESS tankobj(index,n,verts,edges,faces,x0,y0,z0,ang0,col)
 PRIVATE
     i; n;  velx; velz; tilt; twist; vel;   vely;  rolling_sound=16;
     tilting_sound=16;  twisting_Sound=16;  twistspeed;  radi;  timeout; time0; ang;
-    angT; eject;  tcol;   temp;     flicker;
+    angT; eject;  tcol;   temp;  cooling;   flicker;
 
     struct old
         x,z,ang;
@@ -3361,10 +3401,11 @@ BEGIN
         end
 
         if(temp>0)
-          flicker+=1;
+          cooling+=1;
           obj[tank[n]].fogme=0;
-          if(flicker mod 4==0)
+          if(cooling mod 4==0)
           temp-=1;
+          cooling=0;
           end
           if(state==action or state==onfoot)
             if(temp<=10)
@@ -3374,7 +3415,7 @@ BEGIN
                 tankfire(n);
                 state=onfire;
                 temp=16;
-                flicker=0;
+                cooling=0;
             END
           end
         end
@@ -3457,6 +3498,7 @@ BEGIN
                         obj[tank[n]].col0=240+temp;
                     end
                 else
+
                 state=dead;
                 obj[tank[n]].fogme=1;
                 obj[tank[n]].col0=green;
@@ -3471,10 +3513,8 @@ BEGIN
 
                 if(flicker<64)
                     flicker+=1;
-                    obj[tank[n]].col0=color[flicker mod 3]-flicker;
-                if(obj[tank[n]].col0<=green0)
-                    obj[tank[n]].col0=green0;
-                end
+                    flickerout(tank[n],flicker);
+
                 else
                     set_tank_state(n,dead);
                     flicker=0;
@@ -3495,7 +3535,7 @@ BEGIN
             end
 
             case dead:
-                   if(hull_id[n].state==dead
+               if(hull_id[n].state==dead
                    and turret_id[n].state==dead
                    and barrel_id[n].state==dead
                    and dish_id[n].state==dead
@@ -3503,14 +3543,18 @@ BEGIN
                    and shaft_id[n].state==dead
                    )
 
-                    from c=0 to 40;
-                    frame;
-                    end
-                        hide_tank(n,1,n);
-                        hide_tank(n,1,1-n);
-                    if(player_id[n].state==dead)
-                        set_tank_state(n,respawn);
-                    end
+                        if(flicker<64)
+                            flicker+=1;
+                            flickerout(tank[n],flicker);
+                        else
+                            hide_tank(n,1,n);
+                            hide_tank(n,1,1-n);
+                            if(player_id[n].state==dead)
+                                set_tank_state(n,respawn);
+                            end
+                        end
+                else
+                flicker=0;
                 END
             END
 
@@ -3851,6 +3895,16 @@ BEGIN
 END
 
 //--------------------------------------------------------------------------------
+process flickerout(objnum,flicker)
+begin
+    obj[objnum].fogme=0;
+    obj[objnum].col0=color[flicker mod 3]-flicker;
+    if(obj[objnum].col0<=green0)
+        obj[objnum].col0=green0;
+    end
+end
+
+//--------------------------------------------------------------------------------
 
 PROCESS player_obj(index,objNum,w,d,h,verts,edges,faces,x0,h,z0,ang,col,part)
 private
@@ -4139,30 +4193,18 @@ BEGIN
                             vel=0;
                             ang=0;
                         rotate_objxyz(player[index],0,ang,0);
-
                         angle=obj[player[index]].angley;
-
                         obj[objnum].posx=x;
                         obj[objnum].posz=y;
-
-
-                        //move_objxz(objnum,vel);
                         position_obj(objnum,obj[objnum].posx+rand(-1,1),obj[objnum].posy+rand(-1,1),obj[objnum].posz+rand(-1,1));
-
-                        obj[objnum].fogme=0;
-
-                        if(flicker<64)
+                        if(flicker<63)
                             flicker+=1;
-                            obj[objnum].col0=color[flicker mod 3]-flicker;
-                            if(obj[objnum].col0<=green0)
-                                obj[objnum].col0=green0;
-                            end
+                            flickerout(objnum,flicker);
+
                         else
                             player_id[index].state=dead;
                             obj[objnum].fogme=1;
                             obj[objnum].col0=green;
-
-
                         end
 
 
@@ -4748,21 +4790,91 @@ BEGIN
 END
 
 //--------------------------------------------------------------------------------
-PROCESS moon(cam_id,graph)
+
+
+process make_mounts()
+
 private
-   dir=0;
+d=0;
+dist=100000;
+ang; h;
+l_cont=253;
+graph0=3;
+gotdot;
+xh=200;
+g;
+points=0;
+lines=-1;
+map;
+begin
+d=0;
+c=0;
+g=graph0;
+        from map=0 to 1;
+            g=graph0+map;
+            d=0;
+            loop
+                d+=1;
+                get_point(0,g,d,&ang,&h);
+                if(ang==0 and h==0)
+                    break;
+                else
+                    c+=1;
+                    m_dot[c].ang=(ang+600-1200*map)*150;
+                    m_dot[c].h=(63-h)*xh;
+                    m_dot[c].cont=map_get_pixel(0,g,ang,h);
+                    points+=1;
+                end
+            end
+        end
+
+
+        d=1;
+        for(c=1; c<=200; c+=1)
+
+        m_line[c].x[0]=get_disty(m_dot[d].ang,dist);
+        m_line[c].z[0]=get_distx(m_dot[d].ang,dist);
+        m_line[c].y[0]=m_dot[d].h;
+
+        d+=1;
+        m_line[c].x[1]=get_disty(m_dot[d].ang,dist);
+        m_line[c].z[1]=get_distx(m_dot[d].ang,dist);
+        m_line[c].y[1]=m_dot[d].h;
+
+        lines+=1;
+            if(m_dot[d].cont<>l_cont)
+                d+=1;
+               if(d>points) break; end
+            end
+
+        end
+
+  mounts(lines,points);
+end
+
+PROCESS mounts(lines,points)
+private
+x1; y1; z1;x0; y0; z0;
+k;
 BEGIN
-    z=-10000;
-    flags=4;
-    size=50;
     LOOP
-        if(get_distx(cam[cam_id].angle,1000)<0)
-        y=cam[cam_id].cy-scr_cy/4;
-        x=scr_cx-get_disty(cam[cam_id].angle,scr_w);
-        END
+          write_int(0,600,100,0,&lines);
+          write_int(0,600,110,0,&points);
+
+         for(c=1; c<=lines; c+=1)
+          x0=m_line[c].x[0];
+          y0=m_line[c].y[0];
+          z0=m_line[c].z[0];
+          x1=m_line[c].x[1];
+          y1=m_line[c].y[1];
+          z1=m_line[c].z[1];
+          draw_3dline(x0,y0,z0,x1,y1,z1,1,1,green0+30,green0,0);
+         end
         FRAME:
     END
 END
+
+//--------------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------------
 PROCESS camera_control();
