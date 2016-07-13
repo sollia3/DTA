@@ -14,7 +14,7 @@ SHADERANGE=63;
 //STATE ENUMERATION
 out=0;  show=1; action=2; exploding=3; boom=4;  reset=5; dead=6; respawn=7; ready=8;
 onfire=9: onfoot=10; ascent=11; hopping=12; got_fuel=13;   got_shell=14;  got_nowt=15;
-shot=16; shooting=17; running=18;   kamikazi=19;
+shot=16; shooting=17; running=18;   kamikazi=19;   reloading=20;
 
 
 
@@ -146,13 +146,14 @@ end
 struct score
 fuel0;
 ammo0;
-kills[1];
+bullets0;
+tanks0;
 shells[1];
 fuel[1];
-gems[1];
+bullets[1];
 tanks[1];
 justKilled[1];
-END  =30000,10,0,0,10,10, 30000,30000,0,0,5,5,0,0;
+END  =30000,10,6,5,10,10, 30000,30000,0,0,0,0,0,0;
 //----------------------------
 
 struct cam[2]
@@ -367,10 +368,14 @@ BEGIN
     make_mounts();
     moon();
     vulcano();
-    hopin(0); hopin(1);
 
     im_id[0]=messagecentre(tank[0]);
     im_id[1]=messagecentre(tank[1]);
+    from c= 0 to 5;
+    frame;
+    end
+    hopin(0); hopin(1);
+
     delete_drawing();
 //============================================================================================
 
@@ -435,17 +440,29 @@ END
 
 
 process vulcano()
-
 private
-
+burst;
+i;
 begin
        x=0;
        y=10000;
        z=-100000;
 
     loop
-        if(rand(0,12)==0)
-            boulder();
+        if(rand(0,100)==0)
+              boulder();
+        end
+
+        if(rand(0,400)==0)
+            burst=rand(10,30);
+        end
+
+        if(burst>0)
+          c=rand(0,3);
+          for(i=0; i<=c; i+=1)
+                burst-=1;
+                boulder();
+          end
         end
         frame;
     End
@@ -463,14 +480,14 @@ x1;y1;z1;
 vel;velv;velx;velz;  velh;
 col; col0; col1;
 begin
-    x0=father.x+rand(-1000,1000); x1=x0;
+    x0=father.x+rand(-800,800); x1=x0;
     y0=father.y; y1=y0;
     z0=father.z; z1=z0;
-    angle=rand(20000,90000);
-    vel=rand(400,500);
+    angle=rand(60000,90000);
+    vel=rand(300,600);
     velv=-get_disty(angle,vel);
     velh=get_distx(angle,vel);
-    angle=rand(0,360000);
+    angle=180000*rand(0,1);
     col1=160+rand(0,8);
     col0=130;
     col=col1;
@@ -483,13 +500,14 @@ begin
             col-=1;
         end
             x1+=get_distx(angle,velh);
+            //x1+=
             y1+=velv;
-            z1+=get_disty(angle,velh);
+            //z1+=get_disty(angle,velh);
             if(y1>=0)
-                tracer(x0,y0,z0,x1,y1,z1,col,col0,8);
+                tracer(x0,y0,z0,x1,y1,z1,col,col0,2*rand(2,8));
             END
             if(velh>0)
-                velh=9*velh/10;
+                velh=99*velh/100;
             END
                 velv-=10;
                 velv=99*velv/100;
@@ -518,7 +536,8 @@ private
 rad=3000:
 ang=0;
 step_Ang=30000;
-angz=105000;
+tilt=30000;
+angz=225000;
 angzt;
 x0; y0: z0: x1: y1: z1:
 col;
@@ -559,6 +578,10 @@ begin
         x1=l[c].v[1].x;
         y1=l[c].v[1].y+12000;
         z1=l[c].v[1].z;
+
+
+
+
         if(angz<180000 and c<=6  or (angz>=180000 and c>6))
         col=white0+24;
         else
@@ -603,11 +626,12 @@ function hopout(index);
         obj[player[index]].angley=angle;
         position_obj(player[index],x,y+50,z);
         rotate_objxyz(player[index],0,0,0);
-        signal(huds_id[index],s_sleep_tree);
-
+        //signal(huds_id[index],s_sleep_tree);
+        huds_id[index].state=1;
         hide_tank(index,0,index);
         hide_player(index,0,index);
         hide_player(index,0,1-index);
+        score.bullets[index]=score.bullets0;
         if(index==0) scroll.camera=player_id[index]; END
 
     end
@@ -632,7 +656,8 @@ function hopin(index);
         END
         player_id[index].state=action;
         tank_id[index].state=action;
-        signal(huds_id[index],s_wakeup_tree);
+        //signal(huds_id[index],s_wakeup_tree);
+        huds_id[index].state=0;
 
         hide_tank(index,1,index);
         hide_player(index,1,index);
@@ -1203,7 +1228,6 @@ process messagecentre(index)
                     c=-20;
                     state=exploding;
                     message=targethit;
-                    score.kills[index]+=1;
                     score.tanks[1-index]-=1;
 
                 END
@@ -1254,34 +1278,53 @@ PROCESS huds(index,x,y);
         compass_id=compass(index,x,y+h1-20,&obj[turret[index]].angley,1);
         radar_id[index]=radar(index,scr_w-scr_cy/4,scr_cy*(1+index)-scr_cy/4,scr_cy/4);
         LOOP
-            col=col0:
-            draw(1,80,15,0,x,y+h1-20,x,y+h2);
-            draw(1,80,15,0,x,y-h1,x,y-h2);
-            draw(1,80,15,0,x-w1,y-h1,x+w1,y-h1);
-            draw(1,80,15,0,x-w1,y+h1,x+w1,y+h1);
 
-            draw(1,80,15,0,x-w1,y+h1,x-w1,y+h3);
-            draw(1,80,15,0,x-w1,y-h1,x-w1,y-h3);
+            switch (state)
+                case 0:
+                    col=col0:
+                    draw(1,80,15,0,x,y+h1-20,x,y+h2);
+                    draw(1,80,15,0,x,y-h1,x,y-h2);
+                    draw(1,80,15,0,x-w1,y-h1,x+w1,y-h1);
+                    draw(1,80,15,0,x-w1,y+h1,x+w1,y+h1);
 
-            draw(1,80,15,0,x+w1,y+h1,x+w1,y+h3);
-            draw(1,80,15,0,x+w1,y-h1,x+w1,y-h3);
-            for(c=0; c<9; c+=1)
-                draw_col=col-10;
-                draw(1,80,15,0,x-w2-5+c,y-50+get_disty(c*5000,64),x-w2-10,y-50+get_disty(c*5000,64));
-            END
-            sx=x+w1-20;
-            sy=y+h1-10;
-            hud_fuel(sx,sy,score.fuel[index],-10000,index);
-            sx=x-40;
-            sy=y-h1+30;
-            hud_gun(sx,sy,index);
-            col=col0;
-            vwrite_int(x-w1+20,y+h1-30,col,80,score.tanks[index]);
-            if(shaft_id[index])
-                draw_col=col0+20;
-                draw(1,draw_col,15,0,x-w2+2,y+-50+get_disty(shaft_id[index].angle,240),x-w2-10,y-50+get_disty(shaft_id[index].angle,240));
-                vwrite_int(x-w2+5,y-60+get_disty(shaft_id[index].angle,240),draw_col,40,shaft_id[index].angle/10);
-            END
+                    draw(1,80,15,0,x-w1,y+h1,x-w1,y+h3);
+                    draw(1,80,15,0,x-w1,y-h1,x-w1,y-h3);
+
+                    draw(1,80,15,0,x+w1,y+h1,x+w1,y+h3);
+                    draw(1,80,15,0,x+w1,y-h1,x+w1,y-h3);
+                    for(c=0; c<9; c+=1)
+                        draw_col=col-10;
+                        draw(1,80,15,0,x-w2-5+c,y-50+get_disty(c*5000,64),x-w2-10,y-50+get_disty(c*5000,64));
+                    END
+                    sx=x+w1-20;
+                    sy=y+h1-10;
+                    hud_fuel(sx,sy,score.fuel[index],-10000,index);
+                    sx=x-40;
+                    sy=y-h1+30;
+                    hud_gun(sx,sy,index);
+                    col=col0;
+                    //vwrite_int(x-w1+20,y+h1-30,col,80,score.tanks[index]);
+                    if(shaft_id[index])
+                        draw_col=col0+20;
+                        draw(1,draw_col,15,0,x-w2+2,y+-50+get_disty(shaft_id[index].angle,240),x-w2-10,y-50+get_disty(shaft_id[index].angle,240));
+                        vwrite_int(x-w2+5,y-60+get_disty(shaft_id[index].angle,240),draw_col,40,shaft_id[index].angle/10);
+                    END
+                END
+                case 2:
+                    if(score.bullets[index]>0)
+                        for(c=1; c<=score.bullets[index]; c+=1);
+                            hud_bullet(x+scr_cx-40,y+scr_cy/2-20,12,z-1000,c,index);
+                        end
+                    else
+                        if(c>5) c=0; end
+                        c+=1;
+                        vwrite(scr_cx-20,y+scr_cy/2-120,80,245+c,"reload");
+
+                    end
+                end
+                default:
+                end
+            end
         FRAME;
         END
     END
@@ -1360,6 +1403,7 @@ PROCESS hud_gun(x,y,index)
         for( c=score.shells[index]; c>=1; c-=1)
             x-=8;
             hud_shell(x,y,13,z-1000,c,index);
+
         END
         FRAME;
     END
@@ -1402,6 +1446,17 @@ PROCESS hud_Shell(x,y,graph,z,c,index)
         FRAME;
     END
 
+//_______________________________________________________________________________
+
+PROCESS hud_bullet(x,y,graph,z,n,index)
+    private
+    i;
+    BEGIN
+                y-=n*10;
+        FRAME;
+    END
+
+
 
 //_______________________________________________________________________________
 PROCESS ghost(x,y,z,graph,flags)
@@ -1413,7 +1468,7 @@ PROCESS ghost(x,y,z,graph,flags)
 
 
 
-PROCESS compass(index,x,y,angley,points)
+PROCESS compass(index,x0,y0,angley,points)
     PRIVATE
         h1; w1; col0=127;  col;
         h2;  w2;
@@ -1425,67 +1480,76 @@ PROCESS compass(index,x,y,angley,points)
         w1=60;
         w2=30;
         LOOP
-            col=col0;
-            if(turret[index])
-                    for(c=1; c<=4; c+=1)
-                        j=get_disty(*angley-45000-90000*c,w2);
-                        l=get_distx((*angley-45000-90000*c)/2,5);
-
+            switch(father.state)
+                case 0;
+                x=x0;
+                y=y0;
+                    col=col0;
+                    if(turret[index])
+                        for(c=1; c<=4; c+=1)
+                            j=get_disty(*angley-45000-90000*c,w2);
+                            l=get_distx((*angley-45000-90000*c)/2,5);
+                            draw(1,col,15,0,x-j,y+l,x-j,y-l);
+                        END
+                        j=get_disty(*angley-5000,w2);
+                        l=get_distx(*angley/2,6);
+                        k=get_disty(*angley+5000,w2);
+                        if(*angley<=90000 or *angley>=270000)
+                            col=red;
+                        else
+                            col=0;
+                        END
+                        if(*angley>180000)
+                            l=-l;
+                        END
                         draw(1,col,15,0,x-j,y+l,x-j,y-l);
-                    END
-                    j=get_disty(*angley-5000,w2);
-                    l=get_distx(*angley/2,6);
-                    k=get_disty(*angley+5000,w2);
-                    if(*angley<=90000 or *angley>=270000)
-                        col=red;
-                    else
-                        col=0;
-                    END
-                    if(*angley>180000)
-                        l=-l;
-                    END
-                    draw(1,col,15,0,x-j,y+l,x-j,y-l);
-                    draw(1,col,15,0,x-k,y+l,x-k,y-l);
-                    draw(1,col,15,0,x-k,y+l,x-j,y-l);
+                        draw(1,col,15,0,x-k,y+l,x-k,y-l);
+                        draw(1,col,15,0,x-k,y+l,x-j,y-l);
 
+                        j=get_disty(*angley-5000-180000,w2);
+                        l=get_distx((*angley-180000)/2,6);
+                        k=get_disty(*angley+5000-180000,w2);
+                        if(*angley>=90000 and *angley<=270000)
+                            col=col0;
+                        else
+                            col=0;
+                        END
+                        draw(1,col,15,0,x-j,y-l,x-k,y-l);
+                        draw(1,col,15,0,x-j,y+l,x-k,y+l);
+                        draw(1,col,15,0,x-k,y+l,x-j,y-l);
+                        j=get_disty(*angley-5000+90000,w2);
+                        l=get_distx((*angley+90000)/2,6);
+                        k=get_disty(*angley+5000+90000,w2);
+                        if(*angley>=0 and *angley>=180000)
+                            col=col0;
+                        else
+                            col=0;
+                        END
+                        draw(1,col,15,0,x-j,y+l,x-j,y-l);
+                        draw(1,col,15,0,x-j,y+l,x-k,y+l);
+                        draw(1,col,15,0,x-j,y-l,x-k,y-l);
+                        draw(1,col,15,0,x-j,y-1,x-k,y-1);
+                        j=get_disty(*angley-5000+270000,w2);
+                        k=get_disty(*angley+5000+270000,w2);
+                        l=get_distx((*angley+270000)/2,6);
+                        m=get_disty(*angley+270000,w2);
+                        if(*angley>=0 and *angley<=180000)
+                            col=col0;
+                        else
+                            col=0;
+                        END
+                        draw(1,col,15,0,x-j,y+l,x-j,y-l);
+                        draw(1,col,15,0,x-k,y+l,x-k,y-l);
+                        draw(1,col,15,0,x-j,y-l,x-m,y);
+                        draw(1,col,15,0,x-k,y-l,x-m,y);
+                    END
+                end
+                case 1:
 
-                    j=get_disty(*angley-5000-180000,w2);
-                    l=get_distx((*angley-180000)/2,6);
-                    k=get_disty(*angley+5000-180000,w2);
-                    if(*angley>=90000 and *angley<=270000)
-                        col=col0;
-                    else
-                        col=0;
-                    END
-                    draw(1,col,15,0,x-j,y-l,x-k,y-l);
-                    draw(1,col,15,0,x-j,y+l,x-k,y+l);
-                    draw(1,col,15,0,x-k,y+l,x-j,y-l);
-                    j=get_disty(*angley-5000+90000,w2);
-                    l=get_distx((*angley+90000)/2,6);
-                    k=get_disty(*angley+5000+90000,w2);
-                    if(*angley>=0 and *angley>=180000)
-                        col=col0;
-                    else
-                        col=0;
-                    END
-                    draw(1,col,15,0,x-j,y+l,x-j,y-l);
-                    draw(1,col,15,0,x-j,y+l,x-k,y+l);
-                    draw(1,col,15,0,x-j,y-l,x-k,y-l);
-                    draw(1,col,15,0,x-j,y-1,x-k,y-1);
-                    j=get_disty(*angley-5000+270000,w2);
-                    k=get_disty(*angley+5000+270000,w2);
-                    l=get_distx((*angley+270000)/2,6);
-                    m=get_disty(*angley+270000,w2);
-                    if(*angley>=0 and *angley<=180000)
-                        col=col0;
-                    else
-                        col=0;
-                    END
-                    draw(1,col,15,0,x-j,y+l,x-j,y-l);
-                    draw(1,col,15,0,x-k,y+l,x-k,y-l);
-                    draw(1,col,15,0,x-j,y-l,x-m,y);
-                    draw(1,col,15,0,x-k,y-l,x-m,y);
-            END
+                end
+                default:
+                end
+            end
         FRAME;
     END
  END
@@ -2576,7 +2640,7 @@ BEGIN
                         END
                     END
                 else
-                    explosionF(obj[shell[n]].posx,obj[shell[n]].posy,obj[shell[n]].posz,8,cyan0,cyan);
+                    explosionF(obj[shell[n]].posx,obj[shell[n]].posy,obj[shell[n]].posz,24,cyan0,cyan);
                     blastradius(x,y);
                     hit_box=collision(type oilpatch);
                     if(hit_box)
@@ -2661,7 +2725,7 @@ private
 begin
     frag_count+=1;
     x1=x0; y1=y0; z1=z0;
-    angle=rand(3000,90000);
+    angle=rand(-90000,90000);
     vel=rand(140,180);
     velv=-get_disty(angle,vel);
     velh=get_distx(angle,vel);
@@ -2679,6 +2743,7 @@ begin
             if(y1<0)
              y1=0;
              velv=-velv;
+             break;
             END
             z1+=get_disty(angle,velh);
             if(y1>=0)
@@ -2687,7 +2752,7 @@ begin
             if(velh>0)
                 velh=9*velh/10;
             END
-            velv-=4;
+            //velv-=4;
                 velv=9*velv/10;
 
             x0=x1; y0=y1; z0=z1;
@@ -3027,7 +3092,7 @@ begin
     angle=obj[body[n].arm_r].angley+90000;
     col=cyan;
     col0=cyan0;
-    while(travel<80)
+    while(travel<50)
         x1+=get_distx(angle,velh);
         y1+=velv;
         if(y1<0)
@@ -3101,6 +3166,26 @@ begin
 end
 
 
+process  reload(objnum,index,priority)
+
+begin
+    while(key(fire[index]) and score.bullets[index]<6)
+        c+=1;
+        if(c==10)
+            score.bullets[index]+=1;
+            c=0;
+        end
+        if(c mod 10 <3)
+            move_objy(objnum,-5);
+        end
+
+        move_objy(objnum,8);
+
+        rotate_objxyz(objnum,90000,0,0);
+        frame;
+    end
+
+end
 
 
 
@@ -3126,7 +3211,7 @@ begin
     angle=obj[body[n].arm_r].angley+90000;
     col=64;
     col0=0;
-    while(travel<80)
+    while(travel<50)
         x1+=get_distx(angle,velh);
         y1+=velv;
         z1+=get_disty(angle,velh);
@@ -3429,6 +3514,11 @@ BEGIN
     dish_id[n].state=state;
     tank_id[n].state=state;
     post_id[n].state=state;
+    if(state==action)
+        huds_id[n].state=0;
+    else
+        huds_id[n].state=1;
+    end
 END
 //--------------------------------------------------------------------------------
 PROCESS crack_screen(n);
@@ -3630,7 +3720,9 @@ BEGIN
                 hide_tank(n,0,1-n);
                 hide_tank(n,1,n);
                 im_id[tank[1-n]].state=respawn;
-                signal(huds_id[index],s_wakeup_tree);
+                //signal(huds_id[index],s_wakeup_tree);
+                huds_id[index].state=0;
+
             END
             case boom:
                 set_tank_state(n,exploding);
@@ -3641,7 +3733,11 @@ BEGIN
                     player_id[n].state=dead;
                     END
 
-                signal(huds_id[index],s_sleep_tree);
+                //signal(huds_id[index],s_sleep_tree);
+                //obj[tank[n]].fogme=0;
+
+                huds_id[index].state=1;
+
                 im_id[1-n].state=boom;
             END
 
@@ -3650,6 +3746,8 @@ BEGIN
                     move_objy(n,vely);
                     vely-=2;
                     rotate_objxyz(n,5000,0,0);
+                    //obj[tank[n]].fogme=0;
+
                     if(temp>0)
                         obj[tank[n]].col0=240+temp;
                     end
@@ -3672,7 +3770,7 @@ BEGIN
                     flickerout(tank[n],flicker);
 
                 else
-                    set_tank_state(n,dead);
+                    set_tank_state(n,respawn);
                     flicker=0;
                 end
             END
@@ -3737,28 +3835,32 @@ BEGIN
                     if(eject==1)
                         timeout=(timer-time0);
 
-                        if(timeout<=130)
+                        if(timeout<=160)
                                  i+=1;
                                 //vwrite(cam[n].cx-40,cam[n].cy-40,120,146,"eject");
 
 
                                 if(timeout<=100)
 
-                                    for(c=0; c<=40; c+=10)
+                                    for(c=0; c<32; c+=8)
                                         if(c<=(timeout-20)/2)
                                             tcol=red;
                                         else
                                             tcol=green0+32;
                                         end
-                                    draw(1,tcol,15,0,cam[n].cx-8,cam[n].cy+50-c,cam[n].cx+8,cam[n].cy+50-c);
-                                    draw(1,tcol,15,0,cam[n].cx-8,cam[n].cy+50-c,cam[n].cx,cam[n].cy+45-c);
-                                    draw(1,tcol,15,0,cam[n].cx+8,cam[n].cy+50-c,cam[n].cx,cam[n].cy+45-c);
+
+                                    draw(1,tcol,15,0,cam[n].cx-60,cam[n].cy+90-c,cam[n].cx-52,cam[n].cy+90-c);
+                                    draw(1,tcol,15,0,cam[n].cx-60,cam[n].cy+90-c,cam[n].cx-56,cam[n].cy+85-c);
+                                    draw(1,tcol,15,0,cam[n].cx-52,cam[n].cy+90-c,cam[n].cx-56,cam[n].cy+85-c);
 
                                     end
-                                else
+                                    vwrite(cam[n].cx-70,cam[n].cy+50,40,green0+32,"eject");
+
+                                 else
                                     tcol=130+16*((i/2) mod 2);
+                                vwrite(cam[n].cx-70,cam[n].cy+50,40,245+rand(0,5),"eject");
+
                                 end
-                                vwrite(cam[n].cx-40,cam[n].cy-40,120,tcol,"eject");
 
                         else
                             hopout(n);
@@ -3771,6 +3873,20 @@ BEGIN
                         if(not (key(lf[n]) and key(rt[n])))
                             eject=0;
                         end
+                    end
+
+
+                    if(eject==0)
+                                    for(c=0; c<32; c+=8)
+                                            tcol=green0+16;
+                                    draw(1,tcol,15,0,cam[n].cx-60,cam[n].cy+90-c,cam[n].cx-52,cam[n].cy+90-c);
+                                    draw(1,tcol,15,0,cam[n].cx-60,cam[n].cy+90-c,cam[n].cx-56,cam[n].cy+85-c);
+                                    draw(1,tcol,15,0,cam[n].cx-52,cam[n].cy+90-c,cam[n].cx-56,cam[n].cy+85-c);
+
+                                    end
+
+                                vwrite(cam[n].cx-70,cam[n].cy+50,40,tcol-8,"eject");
+
                     end
 
 
@@ -4067,7 +4183,7 @@ PROCESS player_obj(index,objNum,w,d,h,verts,edges,faces,x0,h,z0,ang,col,part)
 private
     vel; ang; radi; px; pz; py; cosA; sinA; c_id; dx, dy; A1;
     theta; swing;    fired;  switching;   aim1; aim2, flicker,
-    x0; y0; z0; x1; y1; z1;
+    x0; y0; z0; x1; y1; z1;   i:
     dir, pitch, velx, vely, velxz, velz, rotx,roty,rotz;   launchvel;
 
 BEGIN
@@ -4108,10 +4224,19 @@ BEGIN
 
 
                     case kamikazi:
-                        if(vel<120)
-                            if(vel==0) vely=24;  end
-                            vel+=10;
-                        END
+                        if(i<200)
+                            if(vel<160)
+                                if(vel==0)
+                                    vely=24;
+                                    i=0;
+                                end
+                                vel+=10;
+                            end
+
+                        else vel=99*vel/100;
+                        end
+
+
                         if(key(lf[index]) and ang<5000)
                         ang+=100;
                         end
@@ -4121,7 +4246,7 @@ BEGIN
                         if(not key(lf[index]) and not key(rt[index]))
                           ang=4*ang/5;
                         END
-
+                        i+=1;
                         rotate_objxyz(player[index],0,ang,0);
 
                         angle=obj[player[index]].angley;
@@ -4129,7 +4254,7 @@ BEGIN
                             velx=get_disty(angle,vel);
                             velz=-get_distx(angle,vel);
 
-                            if(not key(up[index]) or vely>=0) vely-=1; end
+                            if(not key(up[index]) or vely>=0 or i>200) vely-=1;  end
                             if(key(dn[index])) vely-=1; end
 
                         obj[objnum].posx+=velx;
@@ -4156,6 +4281,8 @@ BEGIN
                             if(obj[objnum].posy<=0)
                                obj[objnum].posy=0;
                                state=boom;
+                               explosionF(obj[objnum].posx,obj[objnum].posy,obj[objnum].posz,8,cyan0,cyan);
+
                             end
                             c_id=collision(type tankobj);
                             if(c_id)
@@ -4191,11 +4318,12 @@ BEGIN
                         y1=obj[s_minishell[index].part[0]].posy;
                         z1=obj[s_minishell[index].part[0]].posz;
 
+                        if(i<200)
                         for(c=0; c<=4; c+=1)
                             tracer(x0+rand(-2,2),y0+rand(-2,2),z0+rand(-2,2),
                             x1+rand(-6,6),y1+rand(-6,6),z1+rand(-6,6),fire0+rand(32,48),fire0,8);
                         end
-
+                        end
                     END
 
 
@@ -4732,9 +4860,12 @@ BEGIN
 
                         if(stopnshoot[INDEX]==1)
                             state=shooting;
+                            huds_id[index].state=2;
                         else
                             state=running;
                             obj[objnum].anglex=0;
+                            huds_id[index].state=1;
+
                         end
 
                         switch(part)
@@ -4778,6 +4909,7 @@ BEGIN
                                         rotate_objxyz(objnum,0,0,0);
                                         move_objxz(objnum,get_disty(swing,-12));
                                         move_objy(objnum,get_distx(swing,-12));
+                                        obj[objnum].anglez=0;
                                     ELSE
                                         obj[objnum].anglex=0;
                                         rotate_objxyz(objnum,0,0,0);
@@ -4815,7 +4947,8 @@ BEGIN
                                     position_obj(objnum,px,py,pz);
                                     obj[objnum].angley=obj[player[index]].angley;
 
-                                    if(state==shooting )
+                                    switch (state)
+                                     case shooting:
                                         obj[objnum].anglex=90000;
                                         move_objy(objnum,5);
                                         move_objxz(objnum,10);
@@ -4831,8 +4964,15 @@ BEGIN
                                         laser(index,objnum);
                                         if(key(fire[index]))
                                             if(fired==0)
-                                                bullet(index,objnum);
+                                                if(score.bullets[index]>0)
+                                                    bullet(index,objnum);
+                                                    score.bullets[index]-=1;
+                                                    move_objxz(objnum,-5);
+                                                else
+                                                  reload(objnum,index,priority-1);
+                                                end
                                                 fired=1;
+
                                             end
                                         else
                                             fired=0;
@@ -4842,8 +4982,10 @@ BEGIN
 
                                         rotate_objxyz(objnum,0,0,0);
 
+                                     end
 
-                                    ELSE
+
+                                    case running:
                                         rotx=0;
                                         roty=0;
                                         if(state==running and vel<>0)
@@ -4868,7 +5010,9 @@ BEGIN
                                             END
                                         END
                                     END
-
+                                    default:
+                                    end
+                                   end
                                 else
 
                                     if(flicker<2)
@@ -5439,72 +5583,126 @@ BEGIN
 END
 //--------------------------------------------------------------------------------
 
-PROCESS radar(index,x,y,r)
+PROCESS radar(index,x0,y0,r0)
 private
-    n;  i;   j; k; l;  m; o;
+    n;  i;   j; k; l;  m; o;  r;
     col; ang; ang2; dist; rx; ry; ang1;
 list[2];
 BEGIN
+x=x0; y=y0; r=r0;
     list[0]=1-index;
     list[1]=obj_pwrfuel[0];
     list[2]=obj_pwrshell[0];
     LOOP
-        angle=((angle-6000) +360000) mod 360000;
-        radar_draw_perimeter(index,x,y,r);
-       for(i=0; i<=2; i+=1)
-        n=list[i];
-        if( obj[n].inradar==1)
-            dist=fget_dist(obj[n].vertex[0].x,obj[n].vertex[0].z,obj[index].vertex[0].x,obj[index].vertex[0].z)/200;
-            if(dist<r)
-                ang=fget_angle(obj[index].vertex[0].x,obj[index].vertex[0].z,obj[n].vertex[0].x,obj[n].vertex[0].z)-
-                            obj[turret[index]].angley;
-                rx=get_distx(ang,dist);
-                ry=get_disty(ang,dist);
-                ang2=((angle-fget_angle(0,0,rx,ry))+360000) mod 360000;
-                ang2=ang2/6000:
-                blip(n,x+rx,y+ry,obj[n].col0-60+ang2);
-            END
-        END
-       END
-        draw(4,15,15,0,x-r,y-r,x+r,y+r);
-        draw(1,32,15,0,x,y,x+get_distx(angle,r),y+get_disty(Angle,r));
-            col=green;
-        draw(1,col,15,0,
+        switch(father.state)
+            case 0:
+                x=x0; y=y0; r=r0;
+                angle=((angle-6000) +360000) mod 360000;
+                radar_draw_perimeter(index,x,y,r);
+                for(i=0; i<=2; i+=1)
+                    n=list[i];
+                    if( obj[n].inradar==1)
+                        dist=fget_dist(obj[n].vertex[0].x,obj[n].vertex[0].z,obj[index].vertex[0].x,obj[index].vertex[0].z)/200;
+                        if(dist<r)
+                            ang=fget_angle(obj[index].vertex[0].x,obj[index].vertex[0].z,obj[n].vertex[0].x,obj[n].vertex[0].z)-obj[turret[index]].angley;
+                            rx=get_distx(ang,dist);
+                            ry=get_disty(ang,dist);
+                            ang2=((angle-fget_angle(0,0,rx,ry))+360000) mod 360000;
+                            ang2=ang2/6000;
+                            blip(n,x+rx,y+ry,obj[n].col0-60+ang2);
+                        END
+                    END
+                END
+                draw(1,32,15,0,x,y,x+get_distx(angle,r),y+get_disty(Angle,r));
+                draw(1,32,15,0,x,y,
+                     x+get_distx(120000,r),
+                     y+get_disty(120000,r));
+                draw(1,32,15,0,x,y,
+                     x+get_distx(60000,r),
+                     y+get_disty(60000,r));
+
+                col=green;
+                draw(1,col,15,0,
                      x+get_distx(obj[turret[index]].angley-obj[index].angley+45000,10),
                      y-get_disty(obj[turret[index]].Angley-obj[index].angley+45000,10),
                      x-get_distx(obj[turret[index]].angley-obj[index].angley-45000,10),
                      y+get_disty(obj[turret[index]].Angley-obj[index].angley-45000,10));
-        draw(1,col,15,0,
+                draw(1,col,15,0,
                      x+get_distx(obj[turret[index]].angley-obj[index].angley+45000,10),
                      y-get_disty(obj[turret[index]].Angley-obj[index].angley+45000,10),
                      x-get_disty(obj[turret[index]].angley-obj[index].angley,10),
                      y-get_distx(obj[turret[index]].Angley-obj[index].angley,10));
-        draw(1,col,15,0,
+                draw(1,col,15,0,
                      x-get_distx(obj[turret[index]].angley-obj[index].angley-45000,10),
                      y+get_disty(obj[turret[index]].Angley-obj[index].angley-45000,10),
                      x-get_disty(obj[turret[index]].angley-obj[index].angley,10),
                      y-get_distx(obj[turret[index]].Angley-obj[index].angley,10));
-        draw(1,32,15,0,x,y,
-                     x+get_distx(120000,r),
-                     y+get_disty(120000,r));
-        draw(1,32,15,0,x,y,
-                     x+get_distx(60000,r),
-                     y+get_disty(60000,r));
-        draw(1,red,15,0,//x,y,
+                draw(1,red,15,0,//x,y,
                      x-get_distx(93000+obj[turret[index]].angley,r-10),
                      y+get_disty(93000+obj[turret[index]].Angley,r-10),
                      x-get_distx(93000+obj[turret[index]].angley,r),
                      y+get_disty(93000+obj[turret[index]].Angley,r));
-        draw(1,red,15,0,//x,y,
+                draw(1,red,15,0,//x,y,
                      x-get_distx(87000+obj[turret[index]].angley,r-10),
                      y+get_disty(87000+obj[turret[index]].Angley,r-10),
                      x-get_distx(87000+obj[turret[index]].angley,r),
                      y+get_disty(87000+obj[turret[index]].Angley,r));
-        draw(1,red,15,0,//x,y,
+                draw(1,red,15,0,//x,y,
                      x-get_distx(93000+obj[turret[index]].angley,r-10),
                      y+get_disty(93000+obj[turret[index]].Angley,r-10),
                      x-get_distx(87000+obj[turret[index]].angley,r),
                      y+get_disty(87000+obj[turret[index]].Angley,r));
+
+                col=32;
+                draw(4,col,15,0,x-r,y-r,x+r,y+r);
+
+            end
+            case 1:
+                r=30;
+                x=scr_w-r-2; y=scr_h-cam[index]*scr_cy-r-2;
+                col=32;
+                c=r/5;
+                ang1=obj[player[index]].angley;
+                draw(4,col,15,0,x-r,y-r,x+r,y+r);
+                draw(1,red,15,0,
+                     x-get_disty(ang1+90000,c),
+                     y-get_distx(ang1+90000,c),
+                     x-get_disty(ang1,r-c),
+                     y-get_distx(ang1,r-c));
+                draw(1,red,15,0,
+                     x-get_disty(ang1-90000,c),
+                     y-get_distx(ang1-90000,c),
+                     x-get_disty(ang1,r-c),
+                     y-get_distx(ang1,r-c));
+
+                draw(1,cyan,15,0,
+                     x-get_disty(ang1+90000,c),
+                     y-get_distx(ang1+90000,c),
+                     x-get_disty(ang1+180000,r-c),
+                     y-get_distx(ang1+180000,r-c));
+                draw(1,cyan,15,0,
+                     x-get_disty(ang1-90000,c),
+                     y-get_distx(ang1-90000,c),
+                     x-get_disty(ang1+180000,r-c),
+                     y-get_distx(ang1+180000,r-c));
+
+                /*
+                draw(1,cyan,15,0,//x,y,
+                     x-get_disty(87000+ang1,20),
+                     y-get_distx(87000+ang1,20),
+                     x-get_distx(87000+ang1,r-20),
+                     y+get_disty(87000+ang1,r-20));
+                draw(1,red,15,0,//x,y,
+                     x-get_distx(93000+ang1,10),
+                     y+get_disty(93000+ang1,10),
+                     x-get_distx(87000+ang1,r),
+                     y+get_disty(87000+ang1,r));
+                */
+            end
+            default:
+            end
+        end
+
         FRAME;
     end
 END
