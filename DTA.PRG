@@ -2,7 +2,7 @@ COMPILER_OPTIONS _max_process=2000;
 
 PROGRAM divbattlearenazone;
 
-
+ //v23
 //======================================================================================================================
 
 CONST
@@ -24,9 +24,9 @@ _#=0;
 a#=1; b#=2; c#=3; d#=4; e#=5; f#=6; g#=7; h#=8; i#=9; j#=10;
 k#=11; l#=12; m#=13; n#=14; o#=15; p#=16; q#=17; r#=18;
 s#=19; t#=20; u#=21; v#=22; w#=23; x#=24; y#=25; z#=26;
-excl#=27;
+excl#=27;  apos#=40;
 n0#=30; n1#=31; n2#=32; n3#=33; n4#=34; n5#=35; n6#=36; n7#=37; n8#=38; n9#=39;
-
+up#=41; dn#=42; lf#=43; rt#=44;
 
 //playerstate enumerations
 
@@ -35,6 +35,13 @@ n0#=30; n1#=31; n2#=32; n3#=33; n4#=34; n5#=35; n6#=36; n7#=37; n8#=38; n9#=39;
 
 
 global
+
+//---------------------------------------------------
+
+GAMESTATE=-1;
+//---------------------------------------------------
+
+
 
 statetag[20]= "out",  "show", "action", "exploding", "boom", "reset", "dead",
               "respawn", "ready", "onfire", "on foot", "ascent", "hopping",
@@ -256,10 +263,6 @@ snd_dot;
 snd_click;
 
 
-//---------------------------------------------------
-
-GAMESTATE=0;
-//---------------------------------------------------
 
 
 
@@ -319,26 +322,33 @@ BEGIN
 
 
 
-    up[0]=_up;
-    dn[0]=_down;
-    lf[0]=_left;
-    rt[0]=_right;
-    ctrl[0]=_r_shift;
-    fire[0]=_enter;
-    up[1]=_w;
-    dn[1]=_s;
-    lf[1]=_a;
-    rt[1]=_d;
-    ctrl[1]=_l_shift;
-    fire[1]=_tab;
+    up[1]=_up;
+    dn[1]=_down;
+    lf[1]=_left;
+    rt[1]=_right;
+    ctrl[1]=_r_shift;
+    fire[1]=_enter;
+    up[0]=_w;
+    dn[0]=_s;
+    lf[0]=_a;
+    rt[0]=_d;
+    ctrl[0]=_l_shift;
+    fire[0]=_tab;
 
 
-  //  gamestate=-2;
+    gamestate=-1;
     if(gamestate==-2)
       loop
-       vwrite(20,20,50,green,"shift");
+      size=40;
+      c=cyan;
+      vwrite(100,100,size,c,"compass");
+      vwrite(100,140,size,c,"magazine");
 
+
+
+       y=0;
       frame;
+      delete_drawing();
       end
     end
 
@@ -807,7 +817,7 @@ end
 PROCESS menu(i,j);
     PRIVATE
         snd;
-        struct text[5]
+        struct text[10]
             string name;
             index;
         END
@@ -818,53 +828,38 @@ PROCESS menu(i,j);
         END
 
         string partial="";
+
         selected;
         spc=30;
         ticker;
         line=0;
-        col;
+        col; col0;
         rule=0;
         pressing;
         new_rule;
-        rule_count=14;
+        rule_count=15;
+        dy;
+        init;
+        toy_id[1];
+        bbs[1];
+
     BEGIN
 
-        text[0].name="you have accessed";
-        text[1].name="div tank arena";
-        text[2].name="a tank battle for two players";
-        text[3].name="use space key to enter";
-        rules[0].name="use arrowkeys to view instructions";
-        rules[1].name="upon entering you will find yourself in control of a battle tank";
-        rules[2].name="you are allocated a fleet of five of these tanks";
-        rules[3].name="your objective is to destroy your opponents fleet";
-        rules[4].name="tank controls";
-        rules[5].name="each tank has limited fuel and shells which can be replenished by driving over these objects";
-        rules[6].name="you may also exit your tank and collect these objects on foot";
-        rules[7].name="to exit a tank press the left and right keys simultaneously";
-        rules[8].name="player controls";
-        rules[9].name="pressing fire while carrying the shell in running mode will convert it into a jetpack" ;
-        rules[10].name="jetpacks are suicidal but can be used to destroy enemy tanks";
-        rules[11].name="pressing fire while carrying the fuel in running mode will empty it out creating an oilpatch";
-        rules[12].name="oil patches are flammable and can be ignited with gunshots or tankshells";
-        rules[13].name="players and tanks also burn";
-        rules[14].name="if a player dies while out of his tank the tank will be lost";
+        text[0].name="welcome to div tank arena";
+        text[1].name="press space to enter";
+        text[2].name="use pgup and pgdn to scroll through instructions";
 
-
-       // x=i; y=j;
         ticker=strlen(text[0].name);
         loop
-        write_int(0,10,10,0,&line);
-         //   j=y;
             switch (line)
                 case 0:
                     if(ticker>0) ticker-=1;
-                        snd= sound(snd_click,32,256);
                     ELSE
                         line=-1;
                         ticker=-10;
                     END
                     partial=text[0].name-ticker;
-                    vwrite(20,20,50,green,partial);
+                    vwrite(10,10,40,green,partial);
                 END
                 case -1:
                     if(ticker<0)
@@ -876,10 +871,9 @@ PROCESS menu(i,j);
                 END
                 case 1:
                     partial=text[1].name-ticker;
-                    vwrite(20,40,50,green,partial);
+                    vwrite(10,25,40,green,partial);
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,32,256);
                     ELSE
                         line=-2;
                         ticker=-10;
@@ -895,12 +889,12 @@ PROCESS menu(i,j);
                 END
                 case 2:
                     partial=text[2].name-ticker;
-                    vwrite(20,60,50,green,partial);
+                    vwrite(10,40,40,green,partial);
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,32,256);
                     ELSE
                         line=-3;
+                        line=5;
                         ticker=-10;
                     END
                 END
@@ -916,10 +910,9 @@ PROCESS menu(i,j);
 
                 case 3:
                     partial=text[3].name-ticker;
-                    vwrite(20,80,50,green,partial);
+                    vwrite(20,20,50,green,partial);
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,32,256);
                     ELSE
                         line=-4;
                         ticker=-10;
@@ -931,17 +924,16 @@ PROCESS menu(i,j);
                     if(ticker<0)
                         ticker+=1;
                     ELSE
-                        ticker=strlen(rules[0].name);
+                        ticker=strlen(text[4].name);
                         line=4;
                     END
                 END
 
                 case 4:
-                    partial=rules[0].name-ticker;
-                    vwrite(20,100,40,green,partial);
+                    partial=text[4].name-ticker;
+                    vwrite(20,20,40,green,partial);
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,32,256);
                     ELSE
                         line=5;
                     END
@@ -954,7 +946,7 @@ PROCESS menu(i,j);
                         line=6;
                         col=green+64;
                     END
-                    if(key(_left))
+                    if(key(_pgup))
                     if(pressing<>-1)
                         if(rule>0)
                             rule-=1;
@@ -965,7 +957,7 @@ PROCESS menu(i,j);
 
                     END
                     END
-                    if(key(_right))
+                    if(key(_pgdn))
                     if(pressing<>1)
                         if(rule<rule_count)
                             rule+=1;
@@ -977,20 +969,374 @@ PROCESS menu(i,j);
                     END
                     END
 
-                    pressing=key(_right)-key(_left);
-                    if(new_rule==1)
-                        ticker=strlen(rules[rule].name);
+
+                    pressing=key(_pgdn)-key(_pgup);
+                    if(new_rule==2)
+                        ticker=strlen(rules.name);
                         new_rule=0;
                     END
-                    partial=rules[rule].name-ticker;
+                    partial=rules.name-ticker;
                     if(ticker>0)
                         ticker-=1;
-                        snd= sound(snd_click,16,256);
+                        snd= sound(snd_click,8,512);
                     END
-                    vwrite(20,100,40,green,partial);
-                    graph=rule+30;
-                    x=400; y=0;
+                        vwrite_int(20,550,green,60,rule);
+                        vwrite_int(40,560,green-32,40,rule_count);
+                        vwrite(60,550,50,green,partial);
+                    //graph=rule+30;
+                    x=200; y=0;
+
+                    switch(rule)
+                        case 1:
+                            rules.name="tank view";
+
+                            x=scr_cx;
+                            y=scr_cy;
+                            graph=31;
+                        vwrite_int(20,550,green,60,rule);
+
+                        end
+                        case 2:
+                            state=2;
+                            rules.name="driving the tank";
+                            graph=0;
+                            if(init<>rule)
+                                toy_id[0]=toytank(0,200,250,0,1,state,0);
+                                toy_id[1]=toytank(1,550,450,180000,2,state,0);
+                            init=rule;
+                            end
+                            from c=0 to 1;
+                                if(c==0)
+                                    x=20;
+                                    y=100;
+                                    col0=green;
+                                    text[4] = "forward      w";
+                                    text[5] = "reverse      s";
+                                    text[6] = "turn left    a";
+                                    text[7] = "turn right   d";
+
+                                else
+                                   x=640;
+                                   y=500;
+                                   col0=cyan;
+                                    text[4] = "W   forward";
+                                    text[5] = "S   reverse";
+                                    text[6] = "A   turn left";
+                                    text[7] = "D   turn right";
+
+                                end
+                                dy=20;
+                                if(key(up[c])) col=col0; else col=col0-32; end
+                                vwrite(x,y,60,col,text[4]);
+                                if(key(dn[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[5]);
+                                if(key(lf[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[6]);
+                                if(key(rt[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[7]);
+                            end
+
+                         end
+                        case 3:
+                             state=3;
+                             rules.name="aiming the cannon";
+                            graph=0;
+
+                            if(init<>rule)
+                                toy_id[0]=toyturret(0,200,250,0);
+                                toy_id[1]=toyturret(1,550,450,180000);
+                                init=rule;
+                            end
+
+                            from c=0 to 1;
+                                if(c==0)
+                                    x=20;
+                                    y=100;
+                                    col0=green;
+                                    text[4] = "aim up     shift w";
+                                    text[5] = "aim down   shift s";
+                                    text[6] = "aim left   shift a";
+                                    text[7] = "aim right  shift d";
+
+                                else
+                                   x=600;
+                                   y=500;
+                                   col0=cyan;
+                                    text[4] = "shift W   aim up";
+                                    text[5] = "shift S   aim down";
+                                    text[6] = "shift A   aim left";
+                                    text[7] = "shift D   aim right";
+
+                                end
+                                dy=20;
+                                if(key(up[c]) and key(ctrl[c])) col=col0; else col=col0-32; end
+                                vwrite(x,y,60,col,text[4]);
+                                if(key(dn[c]) and key(ctrl[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[5]);
+                                if(key(lf[c]) and key(ctrl[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[6]);
+                                if(key(rt[c]) and key(ctrl[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[7]);
+                            end
+
+
+                        end
+                        case 4:
+                            rules.name="firing the cannon";
+                            state=4;
+                            graph=0;
+
+                            if(init<>rule)
+                                toy_id[0]=toyshooter(0,150,300);
+                                toy_id[1]=toyshooter(1,550,300);
+                                init=rule;
+                            end
+                            text[4] = "shoot each other!";
+                            from c=0 to 1;
+                                if(c==0)
+                                    x=20;
+                                    y=100;
+                                    col0=green;
+                                    text[5] = "fire  tab";
+                                    draw(2,col0-32,15,0,x+50,y-4,x+82,y+16);
+
+                                else
+                                   x=600;
+                                   y=500;
+                                   col0=cyan;
+                                    text[5] = "enter  fire";
+                                    draw(2,col0-32,15,0,x-4,y-4,x+56,y+16);
+                                end
+                                vwrite(260,140,100,245+rand(0,5),text[4]);
+
+                                if(key(fire[c])) col=col0; else col=col0-32; end
+                                    vwrite(x,y,60,col,text[5]);
+                                end
+
+                        end
+
+
+
+                        case 5:
+                            rules.name="collect fuel and shells";
+                            state=5;
+                            graph=0;
+
+                            if(init<>rule)
+                                toy_id[0]=toymover(0,150,300);
+                                toypwr(7,400,300);
+                                toypwr(8,650,300);
+
+                                init=rule;
+                            end
+
+                        end
+                        case 6:
+                             rules.name="eject! eject! eject!";
+                            state=6;
+                            graph=0;
+
+                            if(init<>rule)
+                                toy_id[0]=toyhopper(0,200,300);
+                                toy_id[1]=toyhopper(1,600,300);
+
+                                init=rule;
+                            end
+
+                            from c=0 to 1;
+                                if(c==0)
+                                    x=20;
+                                    y=100;
+                                    col0=green;
+                                    text[4] = "eject   a d";
+
+                                else
+                                   x=600;
+                                   y=500;
+                                   col0=cyan;
+                                    text[4] = "A D   eject";
+
+                                end
+                                dy=20;
+                                if(key(lf[c]) and key(rt[c])) col=col0; else col=col0-32; end
+                                vwrite(x,y,60,col,text[4]);
+                            end
+
+
+
+                        end
+                        case 7:
+                            rules.name="view from the outside";
+                            state=7;
+                            graph=0;
+                            x=scr_cx;
+                            y=scr_cy;
+
+                                if(init<>rule)
+                                toy_id[0]=footview(0,200,200,32);
+                                toy_id[1]=footview(1,600,400,33);
+
+                                init=rule;
+                            end
+
+
+                            from c=0 to 1;
+                                if(c==0)
+                                    x=20;
+                                    y=100;
+                                    col0=green;
+                                    text[4] = "switch mode   shift";
+
+                                else
+                                   x=600;
+                                   y=500;
+                                   col0=cyan;
+                                    text[4] = "shift switch mode";
+
+                                end
+                                dy=20;
+                                if(key(ctrl[c]))
+                                    col=col0;
+
+                                else
+                                    col=col0-32;
+                                end
+                                vwrite(x,y,60,col,text[4]);
+                            end
+
+
+
+
+                        end
+
+
+                        case 8:
+                            state=8;
+                            rules.name="running around";
+                            graph=0;
+                            if(init<>rule)
+                                toy_id[0]=toytank(0,100,250,0,114,state,1);
+                                toy_id[1]=toytank(1,700,450,180000,115,state,1);
+                            init=rule;
+                            end
+                            from c=0 to 1;
+                                if(c==0)
+                                    x=20;
+                                    y=100;
+                                    col0=green;
+                                    text[4] = "forward      w";
+                                    text[5] = "backwards    s";
+                                    text[6] = "turn left    a";
+                                    text[7] = "turn right   d";
+
+                                else
+                                   x=640;
+                                   y=500;
+                                   col0=cyan;
+                                    text[4] = "W    forward";
+                                    text[5] = "S    backwards";
+                                    text[6] = "A    turn left";
+                                    text[7] = "D    turn right";
+
+                                end
+                                dy=20;
+                                if(key(up[c])) col=col0; else col=col0-32; end
+                                vwrite(x,y,60,col,text[4]);
+                                if(key(dn[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[5]);
+                                if(key(lf[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[6]);
+                                if(key(rt[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[7]);
+                            end
+
+
+
+                        end
+                        case 9:
+                            rules.name="aiming and shooting";
+                            state=9;
+                            graph=36;
+                            if(init<>rule)
+                               // toy_id[0]=;
+                               // toy_id[1]=;
+                               toytargets(400,300,state);
+                            init=rule;
+                            end
+
+                            from c=0 to 1;
+                                if(c==0)
+                                    x=20;
+                                    y=80;
+                                    col0=green;
+                                    text[4] = "aim up     w";
+                                    text[5] = "aim down   s";
+                                    text[6] = "aim left   a";
+                                    text[7] = "aim right  d";
+                                    if(bbs[c]>0)
+                                        text[8] = "enter  fire";
+                                    else
+                                        text[8] = "enter  reload";
+                                    end
+
+                                else
+                                   x=640;
+                                   y=500;
+                                   col0=cyan;
+                                    text[4] = "W    aim up";
+                                    text[5] = "S    aim down";
+                                    text[6] = "A    aim left";
+                                    text[7] = "D    aim right";
+                                    if(bbs[c]>0)
+                                        text[8] = "tab  fire";
+                                    else
+                                        text[8] = "tab  reload";
+                                    end
+                                end
+                                dy=20;
+                                if(key(up[c])) col=col0; else col=col0-32; end
+                                vwrite(x,y,60,col,text[4]);
+                                if(key(dn[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[5]);
+                                if(key(lf[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[6]);
+                                if(key(rt[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[7]);
+                                if(key(fire[c])) col=col0; else col=col0-32; end
+                                y+=dy; vwrite(x,y,60,col,text[8]);
+
+                            end
+                            x=400;
+                            y=300;
+
+
+
+                        end
+                        case 10:
+                             rules.name="collect supplies on foot" ;
+                        end
+                        case 11:
+                             rules.name="try using the shell as a kamikazi jetpack";
+                        end
+                        case 12:
+                             rules.name="or maybe make a highly inflammable puddle";
+                        end
+                        case 13:
+                             rules.name="tanks burn";
+                        end
+                        case 14:
+                             rules.name="as do people";
+                        end
+                        case 15:
+                             rules.name="you lose it out here you're in a world of hurt";
+                        end
+                        default:
+                        end
+                    end
+                    if(new_rule==1) new_rule=2; end
+
                 END
+
                 case 6:
                     if(col>64)
                         col-=12;
@@ -1002,26 +1348,745 @@ PROCESS menu(i,j);
                 END
                 default:
                 END
-            END
-            if(line<6)  col=green-32; END
-            if(abs(line)>=1)
-                vwrite(20,20,40,col,text[0].name);
-            END
-            if(abs(line)>=2)
-                vwrite(20,40,40,col,text[1].name);
-            END
-            if(abs(line)>=3)
-                vwrite(20,60,40,col,text[2].name);
+
             END
 
-            if(abs(line)>=4)
-                vwrite(20,80,40,col,text[3].name);
-            END
+               for(c=0; c<3; c+=1);
+               if(abs(line)>c)
+                  vwrite(10,10+15*c,40,green0+32,text[c].name);
+               end
+               end
 
-
+                state=rule;
             frame;
         END
     end
+
+
+
+process footview(n,x,y,graph0)
+private
+pressing;
+col;
+toy_id[1];
+begin
+graph=graph0;
+if(n==0)
+    col=green;
+else
+    col=cyan;
+end
+
+    loop
+        if(key(ctrl[n]))
+
+            if(pressing==0)
+                if(graph==graph0)
+                    graph+=2;
+                else
+                     graph=graph0;
+                end
+            end
+            pressing=1;
+        else
+            pressing=0;
+        end
+
+        if(graph==32)
+           vwrite(x,y,60,col,"running mode");
+        else
+           vwrite(x,y,60,col,"shooting mode");
+        end
+
+        if(father.state<>7)
+            break;
+        end
+
+        frame;
+    end
+end
+
+
+
+process toytargets(x,y,state)
+private
+bot;
+top;
+vtop;
+toy_id[1];
+x0; y0; x1; y1;
+hit;
+struct laser[1];
+x,y,
+dx,dy,
+col;
+end  =400,300,0,0,255,400,300,0,0,254;
+col[1];
+begin
+    bot=y+70;
+    top=y-50;
+    vtop=y-120;
+    from c=0 to 4;
+        toytarget(c,120,bot,0,28);
+        toytarget(c,680,bot,1,29);
+    end
+    toy_id[0]=toyman(0,x-100,500);
+    toy_id[1]=toyman(1,x+100,500);
+    col[0]=green;
+    col[1]=cyan;
+
+    from c=0 to 9;
+        toybottle(x-220+48*c+rand(-4,4),vtop,37);
+    end
+
+            toyrocketman(0,x,top);
+            toyrocketman(1,x,top);
+
+   loop
+
+        from c=0 to 1;
+        if(key(up[c]))
+            laser[c].dy-=4;
+
+        end
+        if(key(dn[c]))
+            laser[c].dy+=4;
+        end
+        if(key(rt[c]))
+            laser[c].dx+=4;
+        end
+        if(key(lf[c]))
+            laser[c].dx-=4;
+        end
+
+
+        if(laser[c].dy<-10)
+           laser[c].dy=-10;
+        else
+            if(laser[c].dy<-10)
+                laser[c].dy=-10;
+            end
+        end
+        if(laser[c].dx<-10)
+           laser[c].dx=-10;
+        else
+            if(laser[c].dx<-10)
+                laser[c].dx=-10;
+            end
+        end
+
+
+         laser[c].dx=laser[c].dx/2;
+         laser[c].dy=laser[c].dy/2;
+
+         laser[c].dx=laser[c].dx+=rand(-1,1);
+         laser[c].dy=laser[c].dy+=rand(-1,1);
+
+         laser[c].x+=laser[c].dx;
+         laser[c].y+=laser[c].dy;
+
+         if(abs(laser[c].x-400)>300)
+            laser[c].x-=laser[c].dx;
+         END
+
+         IF(laser[c].y<128)
+            laser[c].y-=laser[c].dy;
+         end
+        //if(key(fire[c])
+
+       // end
+        hit=toylaserdot(laser[c].x,laser[c].y);
+        if(hit or laser[c].y>200)
+        draw(rand(2,5),laser[c].col,15,0,laser[c].x-rand(0,2),laser[c].y-rand(0,2),laser[c].x+rand(0,2),laser[c].y+rand(0,2));
+        end
+        x1=toy_id[c].x+50;
+        y1=toy_id[c].y+23;
+        x0=x1+(laser[c].x-toy_id[c].x)/20;
+        y0=y1+(laser[c].y-toy_id[c].y)/20;
+
+        draw(2,col[c],15,0,x0-9,y0-9,x0+9,y0+9);
+        draw(1,col[c],15,0,x0-9,y0-9,x1-9,y1-9);
+        draw(1,col[c],15,0,x0+9,y0-9,x1+9,y1-9);
+        draw(1,col[c],15,0,x0+9,y0+9,x1+9,y1+9);
+        draw(1,col[c],15,0,x0-9,y0+9,x1-9,y1+9);
+
+        end
+
+        if(father.state<>state)
+            signal(id,s_kill_tree);
+        end
+        frame;
+   end
+
+
+end
+
+
+
+process toylaserdot(x,y)
+ begin
+ graph=19;
+ if(collision(type toybottle));
+ return(1);
+ else
+ return(0);
+ end
+ end
+
+
+
+
+process toytarget(c,x0,y0,n,graph0)
+private
+dir;
+dist=0;
+vel=1;
+begin
+    x=x0;
+    y=y0;
+    dist=48*c;
+    while(dist>0)
+        dist+=vel;
+        if(dist>=240)
+            dist=0;
+
+        end
+        frame;
+    end
+    dir=1-n*2;
+    graph=graph0;
+    z=father.father.z+1;
+    loop
+        if(dist<240)
+            x+=dir*vel;
+            dist+=vel;
+        else
+            angle-=3000*dir;
+            if( abs(angle)>90000)
+                angle=0;
+                x=x0;
+                dist=0;
+            end
+        end
+        frame;
+    end
+end
+
+
+
+process toyman(n,x,y)
+private
+dir;
+begin
+dir=1-(n*2);
+
+    graph=n+118;
+    toyarm(n,n+122,x+50,y+24);
+    loop
+        frame;
+    end
+
+end
+
+
+process toyarm(n,graph0,x,y);
+private
+col;
+x0; y0;
+begin
+col=green;
+graph=graph0;
+loop
+    frame;
+end
+
+end
+
+
+
+
+process toybottle(x,y,graph0)
+private
+begin
+    graph=graph0;
+    loop
+        frame;
+    end
+end
+
+
+process toytank(n,x,y,angle,graph0,state,walk);
+private
+walking=-1;
+cyc=1;
+begin
+    graph=graph0;
+    resolution=1000;
+    x*=resolution;
+    y*=resolution;
+    loop
+
+        if(key(up[n]))
+           advance(5000);
+           if(walk) walking+=1; end
+        end
+        if(key(dn[n]))
+           advance(-5000);
+           if(walk) walking+=1; end
+        end
+        if(key(lf[n]))
+           angle+=3000;
+        end
+        if(key(rt[n]))
+           angle-=3000;
+        end
+
+
+        if(walk)
+            if(not key(up[n]) and not key(dn[n]))
+                walking=-1;
+                graph=graph0;
+            else
+                if(walking mod 4==0)
+                    cyc+=(graph0-graph);
+                    graph+=cyc*2;
+                end
+            end
+        end
+        if(father.state<>state)
+    break;
+    end
+    frame:
+    end
+end
+
+
+
+process toyrocketman(c,x,y)
+private
+dir;
+amp=30;
+y0;
+theta;
+dist;
+vel;
+col;
+top;
+segs;
+x0;
+flying=0;
+count;
+i;
+begin
+    top=y-16;
+    vel=4;
+    dist=0;
+    y0=y+30;
+    theta=rand(0,360000);
+    z=father.z+1;
+    if(c==0)
+        col=green0+24;
+    else
+        col=cyan0+24;
+    end
+
+    dir=1-2*c:
+    graph=124+c;
+    x0=x-260*dir;
+    x=x0;
+    loop
+        if(flying==0 and rand(0,800)==1)
+            flying=1;
+        end
+        if(flying==1)
+            theta+=3000;
+            y=y0+get_distx(theta,amp);
+            x+=dir*vel:
+            dist+=vel;
+            for(segs=top; segs<=y; segs+=10);
+                toystalk(x+6*dir,segs,graph+2);
+            end
+            count=rand(0,5);
+            for(i=0; i<=count; i+=1)
+                toyexhaust(x,y,dir);
+            end
+            if(dist>=520)
+                flying=0;
+                x=x0;
+                theta=rand(0,360000);
+                dist=0;
+            end
+         end
+        frame;
+    end
+end
+
+
+process toyexhaust(x0,y0,dir)
+private
+col; decay; vel;
+vy;  vz;
+x1; y1;
+begin
+x=x0;
+y=y0;
+x1=x;
+y1=y;
+col=rand(165,175);
+vel=-rand(1,6)*dir;
+decay=rand(2,10);
+vy=rand(-1,1);
+vz=2*rand(0,1)-1;
+while(col>128)
+x+=vel;
+y+=vy;
+z+=vz;
+col-=decay;
+if(col>128)
+    if(abs(400-x0)<260 and y>250)
+        if(abs(400-x)<232)
+            draw(1,col,15,0,x1,y1,x,y);
+        else
+            if(z>10)
+                draw(1,col,15,0,x1,y1,x,y);
+            else
+                signal(id,s_kill);
+            end
+        end
+    end
+
+end
+x1=x;
+y1=y;
+frame;
+end
+end
+
+
+
+
+
+process toystalk(x,y,graph)
+begin
+z=father.z+1;
+frame;
+end
+
+
+process toyturret(n,x,y,angle);
+begin
+    resolution=1000;
+    x*=resolution;
+    y*=resolution;
+    graph=n+40;
+    toyhull(n,x,y,graph+2,angle,resolution);
+    toybarrel(n,x,y,graph+4,resolution);
+    loop
+        if(key(ctrl[n]))
+            if(key(lf[n]))
+                angle+=3000;
+            end
+            if(key(rt[n]))
+                angle-=3000;
+            end
+        end
+
+        if(father.state<>3)
+    signal(id,s_kill_tree);
+    end
+    frame:
+    end
+end
+
+
+process toyhull(n,x,y,graph,angle,resolution)
+begin
+z=father.z+1;
+loop
+frame;
+end
+end
+
+
+process toybarrel(n,x,y,graph,resolution)
+begin
+        if(n==0) y+=200000; else y-=200000; END
+        toytop(n,x+50000-100000*n,y,graph+2,resolution);
+loop
+        if(key(ctrl[n]))
+            if(key(up[n]))
+                c+=(3000);
+                if(c>30000)
+                    c=30000;
+                end
+            end
+            if(key(dn[n]))
+                c-=(3000);
+                if(c<0)
+                    c=0;
+                end
+
+            end
+        end
+            if(n==0)
+                angle=c;
+            else
+                angle=-c;
+            end
+
+frame;
+end
+end
+
+process toytop(n,x,y,graph,resolution)
+begin
+loop
+frame;
+end
+end
+
+
+
+process toyshooter(n,x,y)
+private
+col0;
+hit;
+spares=4;
+i;
+begin
+if(n==0)
+    col0=green;
+else
+    col0=cyan;
+end
+graph=n+48;
+loop
+    for(i=1;i<=spares; i+=1)
+       toyspare(x-20*((n*2)-1)+30*i*((n*2)-1),y+80,n+5);
+    end
+
+    if(graph>=125)
+        if(spares>0)
+            spares-=1;
+            graph=n+48;
+            size=100;
+        else
+           break;
+        end
+    end
+    if(father.state<>4)
+        signal(id,s_kill_tree);
+    end
+    if(graph==n+48)
+        if(key(fire[n]) and state==0)
+            if(c==0)
+                toyshell(n,x,y);
+                state=50;
+                c=1;
+            end
+        else
+            c=0;
+        end
+        if(state>0)
+            vwrite(x-40,y-50,40,col0-32+4*(state mod 4),"reloading!");
+            state-=1;
+        end
+    else
+        state=0;
+    end
+    if(father.state<>4)
+        signal(id,s_kill_tree);
+    end
+    hit=collision(type toyshell);
+
+    if(hit)
+        signal(hit,s_kill);
+        size=300;
+        graph=111;
+        hit=0;
+    end
+    if( size==300)
+        graph=graph+1;
+    end
+
+frame;
+end
+end
+
+
+
+
+process toyhopper(n,x,y)
+begin
+graph=n+48;
+loop
+
+    if(key(lf[n]) and key(rt[n]) and c==0)
+       father.c=1;
+        mrhopper(n,x,y);
+    end
+
+
+    if(father.state<>6)
+        signal(id,s_kill_tree);
+    end
+frame;
+end
+end
+
+process mrhopper(n,x,y)
+private
+vy=-10;
+vx;
+
+begin
+    vx=(1-(n*2))*2;
+  father.c=2;
+  size=50;
+  loop
+  if(size<100) size+=5; end
+  if(abs(vy)<7)
+    graph=n+108;
+  else
+    graph=n+110;
+
+  end
+  if(y<340)
+    y+=vy;
+    vy+=1;
+    x+=vx;
+  end
+  frame;
+  end
+end
+
+
+
+process toymover(n,x,y)
+private
+col0; col1; col2;
+hit;
+i;
+vel=5;
+f=200;
+a=1;
+fmax=1000;
+amax=10;
+reload;
+refuel;
+begin
+    i=-36;
+    col0=green;
+    col1=col0;
+    col2=col0;
+graph=n+48;
+loop
+    i+=1;
+
+          if(i==-12)
+          toyshell(n,x,y);
+          a-=1;
+          end
+          if(i>24)
+          x+=vel;
+          f-=1;
+          end
+
+
+            c=collision(type toypwr);
+            if(c)
+                if(c.graph==7)
+                reload=1;
+                else
+                refuel=1;;
+                end
+                signal(c,s_kill);
+            end
+
+          if(a>0)
+            vwrite(x-100,y-60,60,col0-32,"ammo");
+          else
+            vwrite(x-100,y-60,60,150+rand(0,5),"no ammo");
+
+          end
+          vwrite(x-100,y-80,60,col0-32,"fuel");
+
+          if(a>0)
+            vwrite_int(x-20,y-60,col1,60,a);
+          end
+          vwrite_int(x-20,y-80,col2,60,f);
+
+
+          if(reload==1)
+            i=0;
+            if(a<amax)
+                a+=1;
+                col1=white;
+            else
+            reload=0;
+            col1=col0;
+            end
+          end
+
+          if(refuel==1)
+            i=0;
+            if(f<fmax)
+                f+=100;
+                col2=white;
+                if(f>1000) f=1000; end
+            else
+            refuel=0;
+            col2=col0;
+            end
+          end
+
+
+
+
+    if(father.state<>5)
+        signal(id,s_kill_tree);
+    end
+frame;
+end
+end
+
+process toypwr(graph,x,y)
+
+begin
+  loop
+    if(father.state<>5)
+        signal(id,s_kill);
+    end
+
+frame;
+end
+end
+
+process toyspare(x,y,graph)
+
+begin
+    frame;
+end
+
+process toyshell(n,x,y)
+
+begin
+graph=n+38;
+z=father.z+1;
+     while(c==0)
+        if(n==0)
+            advance(10);
+        else
+            advance(-10);
+        end
+
+     frame;
+     end
+
+end
+
+
+
 //============================================================================================
 
 PROCESS vwrite(x,y,size,col,string txt);
@@ -1071,6 +2136,12 @@ PROCESS vwrite(x,y,size,col,string txt);
                 case char("8"): ch=n8#;  END
                 case char("9"): ch=n9#;  END
                 case char("!"): ch=excl#;  END
+                case char("'"): ch=apos#; end
+                case char("W"): ch=up#;  END
+                case char("S"): ch=dn#;  END
+                case char("A"): ch=lf#;  END
+                case char("D"): ch=rt#;  END
+
                 default: END
             END
             vwrite_symbol(ch,i,j,size,col);
